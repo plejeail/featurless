@@ -17,24 +17,24 @@
 // Enabling and disabling, will only work if you parse args.
 //
 // Code:
-//     int main(int argc, char** argv)
-//     {
-//       featurless::test tester;       // you must define it yourself
+// int main(int argc, const char** argv)
+// {
+//     featurless::test tester;
 //
-//       tester.parse_args(argc, args);         // if you want to do it, you can
+//     tester.parse_args(argc, argv);
 //
-//       tester.group("group_name");            // its a feature hence a bug
-//       tester.assert("group_name", "If I fail, this group tests stop here, not all tests");
-//       tester.check("group_name",  "I am testing if I am the pope", 1 == 2);
-//       tester.summary("group_name");    // print testing results for group "group_name"
+//     tester.add_group("groupA");
+//     tester.add_group("mygroupname");
+//     tester.check("mygroupname", "this is what my test do", true);
+//     tester.check("mygroupname", "evaluate a function of 'type' bool f(void)",
+//                  []() { return false; });
+//     tester.require("group0", "this would stop if it was false", true);
+//     tester.check("mygroupname", "also supporting functions/lambdas", []() { return true; });
+//     tester.check("Evaluating a global test", []() { return true; });
 //
-//       tester.check("I dont need a group for my test/assert.", true);
-//
-//       // a function I want to execute as a test (type: bool(*func)(void))
-//       auto func_to_test = []() -> bool { return false; }
-//       tester.check("another bug...", func_to_test);
-//       tester.return();
-//  }
+//     tester.print_summary();
+//     return tester.status();
+// }
 // Generated program arguments:
 // Execute the featurless tests you just compiled.
 // Arguments:

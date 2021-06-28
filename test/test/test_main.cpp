@@ -51,6 +51,7 @@ int main(int argc, const char** argv)
     return tester.status();
 }
 
+// Expected:
 // Total 22 checks
 // - check unkown group 0/0
 // group 0  (1/1)

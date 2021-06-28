@@ -30,3 +30,14 @@
 *.exe
 *.out
 *.app
+
+# GTAGS
+GPATH
+GRTAGS
+GTAGS
+
+# build folder + IDE
+**/build/**
+**/.vs/**
+**/.vscode/**
+**/vs-code.sh
