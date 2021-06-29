@@ -1,7 +1,7 @@
 #include <chrono>
 #include <iostream>
 
-#define FEATURLESS_LOG_MIN_LEVEL FLOG_LEVEL_NONE
+#define FEATURLESS_LOG_MIN_LEVEL FLOG_LEVEL_TRACE
 #include <featurless/log.h>
 
 int main()

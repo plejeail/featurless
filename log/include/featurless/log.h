@@ -15,9 +15,10 @@
 // {
 // }
 //===----------------------------------------------------------------------===//
-#include <fstream>
-#include <mutex>
-#include <string>
+#ifndef FEATURLESS_LOG_HEADER_GUARD
+#define FEATURLESS_LOG_HEADER_GUARD
+
+#include <algorithm>
 #include <string_view>
 
 #define FLOG_LEVEL_TRACE 0
@@ -111,27 +112,22 @@ public:
                const std::string_view function,
                const std::string_view src_file,
                const std::string_view message);
+    ~log();
 
 private:
     static log _instance;
+
     void write_record(const std::string_view level,
                       const std::string_view line,
                       const int32_t thread_id,
                       const std::string_view function,
                       const std::string_view src_file,
                       const std::string_view message);
-    void rotate();
     std::string build_file_name(int file_number = 0);
+    void rotate();
 
-    std::ofstream _ofstream;
-    size_t _current_file_size;
-    size_t _max_file_size;
-    short _max_files;
-
-    std::string _file_path;
-    std::string _file_name;
-    std::string _file_ext;
-    std::mutex _mutex;
+    struct impl;
+    impl* _data;
 };
 
 
@@ -170,3 +166,4 @@ consteval std::string_view __level_to_string() noexcept
 }
 #endif
 }  // namespace featurless
+#endif  // FEATURLESS_LOG_HEADER_GUARD

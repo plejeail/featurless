@@ -2,7 +2,7 @@ set_target_cppcheck(${CMAKE_CURRENT_LIST_DIR})
 add_library(${PROJECT_NAME} STATIC )
 
 set(HEADER_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include/featurless)
-target_sources(${PROJECT_NAME} PRIVATE logger.cpp ${HEADER_INCLUDE_DIR}/log.h)
+target_sources(${PROJECT_NAME} PRIVATE log.cpp ${HEADER_INCLUDE_DIR}/log.h)
 target_include_directories(${PROJECT_NAME} 
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
