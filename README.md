@@ -5,5 +5,5 @@ The libraries build with cmake.
 
 Featurless libs :
 - **<featurless/test.h>**   : a small test framework that does NOT take 1s to compile "hello world"
-- **<featurless/logger.h>** : a logger that does only one thing, logging
+- **<featurless/log.h>** : a logger that does only one thing, logging
 
