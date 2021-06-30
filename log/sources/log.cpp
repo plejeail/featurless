@@ -88,7 +88,7 @@ void featurless::log::write_record(const std::string_view level,
             << ':' << std::setw(2) << std::setfill('0') << time_info.tm_min
             << ':' << std::setw(2) << std::setfill('0') << time_info.tm_sec 
             << "][" // Thread Id
-            << std::setw(8) << std::setfill('0') << std::this_thread::get_id() 
+            << std::setw(12) << std::setfill('0') << std::hex << std::this_thread::get_id() 
             << "][" // level
             << level
             << "][" // function
