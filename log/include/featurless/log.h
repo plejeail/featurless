@@ -2,18 +2,29 @@
 //                         SIMPLE LOGGING LIBRARY
 //
 //
-// Log level:
-// Filter logs by level at compile time and runtime.
-// Compile time:
-// Set FEATURLESS_LOG_MIN_LEVEL before including "featurless/logger.h"
-// TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL
+// Featurless small C++ logging library.
 //
-// Log format:
-// Date;Time;Thread;Level;File;Line;Function;Message
-// Example:
+// It provides the following tolerated features:
+// - create folders of log path file if they do not exit
+// - several log levels that can be enabled or disabled at compile time
+// - rolling file
+//
+// Usage:
+// #define FEATURLESS_LOG_MIN_LEVEL FLOG_LEVEL_DEBUG
+// #include<featurless/log.h>
 // int main()
 // {
+//      size_t max_size_kB = 1000;
+//      short max_nb_files = 10;
+//      featurless::log::init("./my-log-path.log", max_size_kB, max_nb_files);
+//      FLOG_TRACE("THIS MESSAGE IS NOT LOGGED");
+//      FLOG_DEBUG("Starting application");
+//      FLOG_FATAL("Abort! Abort! Abort!");
 // }
+//
+// The logger is a singleton that can be accessed with the logger() method.
+// However, this should not be necessary.
+//
 //===----------------------------------------------------------------------===//
 #ifndef FEATURLESS_LOG_HEADER_GUARD
 #define FEATURLESS_LOG_HEADER_GUARD
@@ -34,19 +45,19 @@
 #endif
 
 #if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_TRACE
-#define FLOG_TRACE(message)                                                                   \
-    featurless::log::logger().write(                                                          \
-      featurless::__level_to_string<featurless::log::level::trace>(),                         \
-      __FEATURLESS_STRINGIZE(__LINE__), 0, __func__, featurless::__pretty_filename(__FILE__), \
+#define FLOG_TRACE(message)                                                                \
+    featurless::log::logger().write(                                                       \
+      featurless::__level_to_string<featurless::log::level::trace>(),                      \
+      __FEATURLESS_STRINGIZE(__LINE__), __func__, featurless::__pretty_filename(__FILE__), \
       message)
 #else
 #define FLOG_TRACE(message)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_DEBUG
-#define FLOG_DEBUG(message)                                                                   \
-    featurless::log::logger().write(                                                          \
-      featurless::__level_to_string<featurless::log::level::debug>(),                         \
-      __FEATURLESS_STRINGIZE(__LINE__), 0, __func__, featurless::__pretty_filename(__FILE__), \
+#define FLOG_DEBUG(message)                                                                \
+    featurless::log::logger().write(                                                       \
+      featurless::__level_to_string<featurless::log::level::debug>(),                      \
+      __FEATURLESS_STRINGIZE(__LINE__), __func__, featurless::__pretty_filename(__FILE__), \
       message)
 #else
 #define FLOG_DEBUG(message)
@@ -54,34 +65,34 @@
 #if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_INFO
 #define FLOG_INFO(message)                                                                         \
     featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::info>(), \
-                                    __FEATURLESS_STRINGIZE(__LINE__), 0, __func__,                 \
+                                    __FEATURLESS_STRINGIZE(__LINE__), __func__,                    \
                                     featurless::__pretty_filename(__FILE__), message)
 #else
 #define FLOG_INFO(message)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_WARN
-#define FLOG_WARN(message)                                                                    \
-    featurless::log::logger().write(                                                          \
-      featurless::__level_to_string<featurless::log::level::warning>(),                       \
-      __FEATURLESS_STRINGIZE(__LINE__), 0, __func__, featurless::__pretty_filename(__FILE__), \
+#define FLOG_WARN(message)                                                                 \
+    featurless::log::logger().write(                                                       \
+      featurless::__level_to_string<featurless::log::level::warning>(),                    \
+      __FEATURLESS_STRINGIZE(__LINE__), __func__, featurless::__pretty_filename(__FILE__), \
       message)
 #else
 #define FLOG_WARN(message)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_ERROR
-#define FLOG_ERROR(message)                                                                   \
-    featurless::log::logger().write(                                                          \
-      featurless::__level_to_string<featurless::log::level::error>(),                         \
-      __FEATURLESS_STRINGIZE(__LINE__), 0, __func__, featurless::__pretty_filename(__FILE__), \
+#define FLOG_ERROR(message)                                                                \
+    featurless::log::logger().write(                                                       \
+      featurless::__level_to_string<featurless::log::level::error>(),                      \
+      __FEATURLESS_STRINGIZE(__LINE__), __func__, featurless::__pretty_filename(__FILE__), \
       message)
 #else
 #define FLOG_ERROR(message)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_FATAL
-#define FLOG_FATAL(message)                                                                   \
-    featurless::log::logger().write(                                                          \
-      featurless::__level_to_string<featurless::log::level::fatal>(),                         \
-      __FEATURLESS_STRINGIZE(__LINE__), 0, __func__, featurless::__pretty_filename(__FILE__), \
+#define FLOG_FATAL(message)                                                                \
+    featurless::log::logger().write(                                                       \
+      featurless::__level_to_string<featurless::log::level::fatal>(),                      \
+      __FEATURLESS_STRINGIZE(__LINE__), __func__, featurless::__pretty_filename(__FILE__), \
       message)
 #else
 #define FLOG_FATAL(message)
@@ -108,10 +119,12 @@ public:
     static log& logger() noexcept { return _instance; }
     void write(const std::string_view level,
                const std::string_view line,
-               const int32_t thread_id,
                const std::string_view function,
                const std::string_view src_file,
                const std::string_view message);
+
+    static std::string file_path() { return _instance.build_file_name(0); }
+
     ~log();
 
 private:
@@ -119,11 +132,12 @@ private:
 
     void write_record(const std::string_view level,
                       const std::string_view line,
-                      const int32_t thread_id,
                       const std::string_view function,
                       const std::string_view src_file,
                       const std::string_view message);
+
     std::string build_file_name(int file_number = 0);
+
     void rotate();
 
     struct impl;
@@ -165,5 +179,7 @@ consteval std::string_view __level_to_string() noexcept
         return std::string_view(" ??? ");
 }
 #endif
+
+
 }  // namespace featurless
 #endif  // FEATURLESS_LOG_HEADER_GUARD

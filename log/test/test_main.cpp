@@ -44,6 +44,3 @@ int main()
                    / 10
               << '\n';
 }
-// clang-format off
-// include tests headers
-// clang-format on

@@ -7,12 +7,14 @@
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <thread>
 
 #ifdef _WIN32
 #include <sys/time.h>
 #else
 #include <sys/timeb.h>
 #endif
+
 
 struct featurless::log::impl
 {
@@ -53,7 +55,6 @@ constexpr size_t estimate_record_size(size_t dynamic_size) noexcept
 
 void featurless::log::write(const std::string_view level,
                             const std::string_view line,
-                            const int32_t thread_id,
                             const std::string_view function,
                             const std::string_view src_file,
                             const std::string_view message)
@@ -66,12 +67,11 @@ void featurless::log::write(const std::string_view level,
         rotate();
     _data->_current_file_size += record_size;
 
-    write_record(level, line, thread_id, function, src_file, message);
+    write_record(level, line, function, src_file, message);
 }
 
 void featurless::log::write_record(const std::string_view level,
                                    const std::string_view line,
-                                   const int32_t thread_id,
                                    const std::string_view function,
                                    const std::string_view src_file,
                                    const std::string_view message)
@@ -88,7 +88,7 @@ void featurless::log::write_record(const std::string_view level,
             << ':' << std::setw(2) << std::setfill('0') << time_info.tm_min
             << ':' << std::setw(2) << std::setfill('0') << time_info.tm_sec 
             << "][" // Thread Id
-            << std::setw(8) << std::setfill('0') << thread_id 
+            << std::setw(8) << std::setfill('0') << std::this_thread::get_id() 
             << "][" // level
             << level
             << "][" // function
