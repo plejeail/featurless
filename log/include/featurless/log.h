@@ -144,7 +144,6 @@ private:
     impl* _data;
 };
 
-
 #if FEATURLESS_LOG_MIN_LEVEL < FLOG_LEVEL_NONE
 #define __FEATURLESS_STRINGIZE(x)    __FEATURLESS_STRINGIZE_DT(x)
 #define __FEATURLESS_STRINGIZE_DT(x) #x
@@ -179,7 +178,5 @@ consteval std::string_view __level_to_string() noexcept
         return std::string_view(" ??? ");
 }
 #endif
-
-
 }  // namespace featurless
 #endif  // FEATURLESS_LOG_HEADER_GUARD

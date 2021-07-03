@@ -87,9 +87,8 @@ public:
 
 private:
     bool is_group_enabled(const char* const group_name);
-    bool internal_check(const char* const description, bool condition);
-    bool
-    internal_check(const char* const description, const char* const group_name, bool condition);
+    bool __check(const char* const description, bool condition);
+    bool __check(const char* const description, const char* const group_name, bool condition);
     Data* _data;
 };
 }  // namespace featurless
