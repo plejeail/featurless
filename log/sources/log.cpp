@@ -29,7 +29,7 @@ struct featurless::log::impl
 
 featurless::log featurless::log::_instance;
 
-inline tm localtime_s() noexcept
+inline tm __featurless_localtime_s() noexcept
 {
     time_t time_now;  // NOLINT
     time(&time_now);
@@ -46,11 +46,29 @@ inline tm localtime_s() noexcept
     return t;
 }
 
+inline tm __featurless_gmtime_s() noexcept
+{
+    time_t time_now;  // NOLINT
+    time(&time_now);
+    tm t{};
+#if defined(_WIN32) && defined(__BORLANDC__)
+    ::gmtime_s(&time_now, &t);
+#elif defined(_WIN32) && defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)
+    t = *::gmtime(&time_now);
+#elif defined(_WIN32)
+    ::gmtime_s(&t, &time_now);
+#else
+    ::gmtime_r(&time_now, &t);
+#endif
+    return t;
+}
+
 constexpr size_t estimate_record_size(size_t dynamic_size) noexcept
 {
     return 48 + dynamic_size;
 }
 
+template<bool use_utc>
 void featurless::log::write(const std::string_view level,
                             const std::string_view line,
                             const std::string_view function,
@@ -65,18 +83,30 @@ void featurless::log::write(const std::string_view level,
         rotate();
     _data->_current_file_size += record_size;
 
-    write_record(level, line, function, src_file, message);
+    write_record<use_utc>(level, line, function, src_file, message);
 }
 
+template void featurless::log::write<false>(const std::string_view level,
+                                            const std::string_view line,
+                                            const std::string_view function,
+                                            const std::string_view src_file,
+                                            const std::string_view message);
+template void featurless::log::write<true>(const std::string_view level,
+                                           const std::string_view line,
+                                           const std::string_view function,
+                                           const std::string_view src_file,
+                                           const std::string_view message);
 template<typename int_t>
 static void copy_int(char* dest, int_t integer)
 {
-    while (integer > 0)
-    {
-        *dest = '0' + static_cast<char>(integer % 10);
-        integer /= 10;
-        --dest;
-    }
+    // while (integer > 0)
+    // {
+    //     *dest = '0' + static_cast<char>(integer % 10);
+    //     integer /= 10;
+    //     --dest;
+    // }
+    dest[0] = '0' + static_cast<char>(integer / 10);
+    dest[1] = '0' + static_cast<char>(integer % 10);
 }
 
 template<typename int_t>
@@ -106,38 +136,50 @@ inline unsigned long int fucking_std_thread_id() noexcept
 #endif
 }
 
+template<bool use_utc>
 void featurless::log::write_record(const std::string_view level,
                                    const std::string_view line,
                                    const std::string_view function,
                                    const std::string_view src_file,
                                    const std::string_view message)
 {
-    tm time_info = localtime_s();
-    std::string msg_buffer = "[0000-00-00 00:00:00][000000000000][      ][";
-    msg_buffer.reserve(msg_buffer.size() + line.size() + function.size() + src_file.size()
-                       + message.size() + 6);
+    tm time_info;
+    if constexpr (use_utc)
+        time_info = __featurless_gmtime_s();
+    else
+        time_info = __featurless_localtime_s();
+    std::string msg_buffer = "[2000-00-00 00:00:00][000000000000][     ][";
+    msg_buffer.resize(msg_buffer.size() + line.size() + function.size() + src_file.size()
+                      + message.size() + 7);
 
-    copy_int(msg_buffer.data() + 4, time_info.tm_year + 1900);
-    copy_int(msg_buffer.data() + 7, time_info.tm_mon + 1);
-    copy_int(msg_buffer.data() + 10, time_info.tm_mday);
-    copy_int(msg_buffer.data() + 13, time_info.tm_hour);
-    copy_int(msg_buffer.data() + 16, time_info.tm_min);
-    copy_int(msg_buffer.data() + 19, time_info.tm_sec);
-    auto dumb_comitee_id = std::this_thread::get_id();
+    copy_int(msg_buffer.data() + 3, time_info.tm_year - 100);
+    copy_int(msg_buffer.data() + 6, time_info.tm_mon + 1);
+    copy_int(msg_buffer.data() + 9, time_info.tm_mday);
+    copy_int(msg_buffer.data() + 12, time_info.tm_hour);
+    copy_int(msg_buffer.data() + 15, time_info.tm_min);
+    copy_int(msg_buffer.data() + 18, time_info.tm_sec);
     copy_hex(msg_buffer.data() + 33, fucking_std_thread_id());
     std::memcpy(msg_buffer.data() + 36, level.data(), level.size());
-    msg_buffer += function;
-    msg_buffer += "]@(";  // Location
-    msg_buffer += src_file;
-    msg_buffer += ',';
-    msg_buffer += line;
-    msg_buffer += ") ";
-    msg_buffer += message;
-    msg_buffer += '\n';
+    char* ptr_data = msg_buffer.data() + 43;
+    std::memcpy(ptr_data, function.data(), function.size());
+    ptr_data += function.size();
+    *ptr_data++ = ']';
+    *ptr_data++ = '@';
+    *ptr_data++ = '(';
+    std::memcpy(ptr_data, src_file.data(), src_file.size());
+    ptr_data += src_file.size();
+    *ptr_data++ += ',';
+    std::memcpy(ptr_data, line.data(), line.size());
+    ptr_data += line.size();
+    *ptr_data++ = ')';
+    *ptr_data++ = ' ';
+    std::memcpy(ptr_data, message.data(), message.size());
+    ptr_data[message.size()] = '\n';
 
     std::scoped_lock s{ _data->_mutex };
     _data->_ofstream << msg_buffer;
 }
+
 
 void featurless::log::rotate()
 {
