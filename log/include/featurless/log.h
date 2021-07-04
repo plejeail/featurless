@@ -29,7 +29,6 @@
 #ifndef FEATURLESS_LOG_HEADER_GUARD
 #define FEATURLESS_LOG_HEADER_GUARD
 
-#include <algorithm>
 #include <string_view>
 
 #define FLOG_LEVEL_TRACE 0
@@ -132,8 +131,6 @@ public:
                const std::string_view src_file,
                const std::string_view message);
 
-    static std::string file_path() { return _instance.build_file_name(0); }
-
     ~log();
 
 private:
@@ -158,13 +155,20 @@ private:
 #define __FEATURLESS_STRINGIZE(x)    __FEATURLESS_STRINGIZE_DT(x)
 #define __FEATURLESS_STRINGIZE_DT(x) #x
 
-consteval std::string_view __pretty_filename(const std::string_view filename)
+consteval std::string_view __pretty_filename(const std::string_view filename) noexcept
 {  // to be used only on __FILE__ macro
+    std::string_view::const_reverse_iterator it;
+    for (it = filename.rbegin(); it < filename.rend(); ++it)
 #ifdef _WIN32
-    auto it = std::find(filename.rbegin() + 3, filename.rend(), '\\');
+        if (*it == '\\')
+            break;
+            // auto it = std::find(filename.rbegin() + 3, filename.rend(), '\\');
 #else
-    auto it = --std::find(filename.rbegin() + 3, filename.rend(), '/');
+        if (*it == '/')
+            break;
+            //auto it = --std::find(filename.rbegin() + 3, filename.rend(), '/');
 #endif
+    --it;
     return std::string_view(&(*it), &*filename.cend() - &*it);
 }
 

@@ -99,12 +99,6 @@ template void featurless::log::write<true>(const std::string_view level,
 template<typename int_t>
 static void copy_int(char* dest, int_t integer)
 {
-    // while (integer > 0)
-    // {
-    //     *dest = '0' + static_cast<char>(integer % 10);
-    //     integer /= 10;
-    //     --dest;
-    // }
     dest[0] = '0' + static_cast<char>(integer / 10);
     dest[1] = '0' + static_cast<char>(integer % 10);
 }
