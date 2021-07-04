@@ -3,7 +3,6 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -11,10 +10,9 @@
 
 #ifdef _WIN32
 #include <sys/time.h>
-#else
+#else  // UNIX LIKE
 #include <sys/timeb.h>
 #endif
-
 
 struct featurless::log::impl
 {
@@ -70,6 +68,44 @@ void featurless::log::write(const std::string_view level,
     write_record(level, line, function, src_file, message);
 }
 
+template<typename int_t>
+static void copy_int(char* dest, int_t integer)
+{
+    while (integer > 0)
+    {
+        *dest = '0' + static_cast<char>(integer % 10);
+        integer /= 10;
+        --dest;
+    }
+}
+
+template<typename int_t>
+static void copy_hex(char* dest, int_t integer)
+{
+    constexpr std::array<char, 16> digits{ '0', '1', '2', '3', '4', '5', '6', '7',
+                                           '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+    while (integer > 0)
+    {
+        *dest = digits[integer % 16];
+        integer /= 16;
+        --dest;
+    }
+}
+
+inline unsigned long int fucking_std_thread_id() noexcept
+{
+#if _MSC_VER > 0
+    auto stupid_std_id = std::this_thread::get_id();
+    return *reinterpret_cast<unsigned int*>(&stupid_std_id);
+#elif defined(__GNUC__)  // dont know if it works on intel comiler
+    auto stupid_std_id = std::this_thread::get_id();
+    return *reinterpret_cast<unsigned long int*>(&stupid_std_id);
+#else                    // no thread id for you
+    constexpr int noid{ 0 };
+    return noid;
+#endif
+}
+
 void featurless::log::write_record(const std::string_view level,
                                    const std::string_view line,
                                    const std::string_view function,
@@ -77,36 +113,35 @@ void featurless::log::write_record(const std::string_view level,
                                    const std::string_view message)
 {
     tm time_info = localtime_s();
-    std::stringstream msg_buffer;
-    // clang-format off
-    msg_buffer << '[' // Calendar date
-            << time_info.tm_year + 1900 
-            << '-' << std::setw(2) << std::setfill('0') << time_info.tm_mon + 1
-            << '-' << std::setw(2) << std::setfill('0') << time_info.tm_mday 
-            << "][" // Hour
-            << std::setw(2) << std::setfill('0') << time_info.tm_hour
-            << ':' << std::setw(2) << std::setfill('0') << time_info.tm_min
-            << ':' << std::setw(2) << std::setfill('0') << time_info.tm_sec 
-            << "][" // Thread Id
-            << std::setw(12) << std::setfill('0') << std::hex << std::this_thread::get_id() 
-            << "][" // level
-            << level
-            << "][" // function
-            << function
-            << "]@(" // Location 
-            << src_file << ',' << line
-            << ") "
-            << message
-            << '\n';
-    // clang-format on
+    std::string msg_buffer = "[0000-00-00 00:00:00][000000000000][      ][";
+    msg_buffer.reserve(msg_buffer.size() + line.size() + function.size() + src_file.size()
+                       + message.size() + 6);
 
-    _data->_mutex.lock();
-    _data->_ofstream << msg_buffer.str();
-    _data->_mutex.unlock();
+    copy_int(msg_buffer.data() + 4, time_info.tm_year + 1900);
+    copy_int(msg_buffer.data() + 7, time_info.tm_mon + 1);
+    copy_int(msg_buffer.data() + 10, time_info.tm_mday);
+    copy_int(msg_buffer.data() + 13, time_info.tm_hour);
+    copy_int(msg_buffer.data() + 16, time_info.tm_min);
+    copy_int(msg_buffer.data() + 19, time_info.tm_sec);
+    auto dumb_comitee_id = std::this_thread::get_id();
+    copy_hex(msg_buffer.data() + 33, fucking_std_thread_id());
+    std::memcpy(msg_buffer.data() + 36, level.data(), level.size());
+    msg_buffer += function;
+    msg_buffer += "]@(";  // Location
+    msg_buffer += src_file;
+    msg_buffer += ',';
+    msg_buffer += line;
+    msg_buffer += ") ";
+    msg_buffer += message;
+    msg_buffer += '\n';
+
+    std::scoped_lock s{ _data->_mutex };
+    _data->_ofstream << msg_buffer;
 }
 
 void featurless::log::rotate()
 {
+    std::scoped_lock s{ _data->_mutex };
     _data->_ofstream.close();
 
     for (int file_number = _data->_max_files - 2; file_number >= 0; --file_number)
@@ -121,8 +156,7 @@ void featurless::log::rotate()
 
 std::string featurless::log::build_file_name(int file_number)
 {
-    constexpr size_t estimated_number_digits = 4;
-
+    constexpr size_t estimated_number_digits = 2;  // if more than 2 digits, 2x allocation
     std::string filename;
     filename.reserve(_data->_file_name.size() + _data->_file_ext.size() + estimated_number_digits);
     filename += _data->_file_name;
