@@ -65,7 +65,7 @@ inline tm __featurless_gmtime_s() noexcept
 
 constexpr size_t estimate_record_size(size_t dynamic_size) noexcept
 {
-    return 48 + dynamic_size;
+    return 51 + dynamic_size;
 }
 
 template<bool use_utc>
@@ -75,8 +75,8 @@ void featurless::log::write(const std::string_view level,
                             const std::string_view src_file,
                             const std::string_view message)
 {
-    size_t record_size =
-      estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
+    size_t record_size = estimate_record_size(line.size() + function.size()  //
+                                              + src_file.size() + message.size());
 
     if ((_data->_current_file_size + record_size) > _data->_max_file_size  //
         && _data->_max_files > 0) [[unlikely]]
@@ -91,23 +91,25 @@ template void featurless::log::write<false>(const std::string_view level,
                                             const std::string_view function,
                                             const std::string_view src_file,
                                             const std::string_view message);
+
 template void featurless::log::write<true>(const std::string_view level,
                                            const std::string_view line,
                                            const std::string_view function,
                                            const std::string_view src_file,
                                            const std::string_view message);
+
 template<typename int_t>
-static void copy_int(char* dest, int_t integer)
+static void copy_int(char* dest, int_t integer) noexcept
 {
     dest[0] = '0' + static_cast<char>(integer / 10);
     dest[1] = '0' + static_cast<char>(integer % 10);
 }
 
 template<typename int_t>
-static void copy_hex(char* dest, int_t integer)
+static void copy_hex(char* dest, int_t integer) noexcept
 {
     constexpr std::array<char, 16> digits{ '0', '1', '2', '3', '4', '5', '6', '7',
-                                           '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+                                           '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
     while (integer > 0)
     {
         *dest = digits[integer % 16];
@@ -142,9 +144,11 @@ void featurless::log::write_record(const std::string_view level,
         time_info = __featurless_gmtime_s();
     else
         time_info = __featurless_localtime_s();
-    std::string msg_buffer = "[2000-00-00 00:00:00][000000000000][     ][";
-    msg_buffer.resize(msg_buffer.size() + line.size() + function.size() + src_file.size()
-                      + message.size() + 7);
+    std::string msg_buffer(msg_buffer.size() + line.size() + function.size() + src_file.size()
+                             + message.size() + 7,
+                           ' ');
+    msg_buffer.resize(0);
+    msg_buffer += "[2000-00-00 00:00:00][000000000000][     ][";
 
     copy_int(msg_buffer.data() + 3, time_info.tm_year - 100);
     copy_int(msg_buffer.data() + 6, time_info.tm_mon + 1);
@@ -173,7 +177,6 @@ void featurless::log::write_record(const std::string_view level,
     std::scoped_lock s{ _data->_mutex };
     _data->_ofstream << msg_buffer;
 }
-
 
 void featurless::log::rotate()
 {
