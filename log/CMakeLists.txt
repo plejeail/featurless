@@ -11,7 +11,7 @@ project(FEATURLESS_LOGGER VERSION 1.0.0)
 option(BUILD_TESTS "Build tests executable" ON)
 
 option(ENABLE_CACHE "Enable cache if available" OFF)
-option(ENABLE_SANITIZER "Enable sanitizers" OFF)
+option(ENABLE_SANITIZER "Enable sanitizers" ON)
 option(ENABLE_SANITIZER_MEMORY "Enable memory sanitizer" FALSE)
 option(ENABLE_SANITIZER_THREAD "Enable thread sanitizer" FALSE)
 option(ENABLE_ANALYZERS "Enable third-party found analysers" OFF)

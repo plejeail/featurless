@@ -162,14 +162,11 @@ consteval std::string_view __pretty_filename(const std::string_view filename) no
 #ifdef _WIN32
         if (*it == '\\')
             break;
-            // auto it = std::find(filename.rbegin() + 3, filename.rend(), '\\');
 #else
         if (*it == '/')
             break;
-            //auto it = --std::find(filename.rbegin() + 3, filename.rend(), '/');
 #endif
-    --it;
-    return std::string_view(&(*it), &*filename.cend() - &*it);
+    return std::string_view(it.base(), filename.end());
 }
 
 template<featurless::log::level lvl>

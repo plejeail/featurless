@@ -14,6 +14,8 @@
 #include <sys/timeb.h>
 #endif
 
+featurless::log featurless::log::_instance;
+
 struct featurless::log::impl
 {
     std::ofstream _ofstream;
@@ -27,7 +29,68 @@ struct featurless::log::impl
     std::mutex _mutex;
 };
 
-featurless::log featurless::log::_instance;
+
+constexpr size_t estimate_record_size(size_t dynamic_size) noexcept
+{
+    return 51 + dynamic_size;
+}
+
+template<bool use_utc>
+void featurless::log::write(const std::string_view lvl_str,
+                            const std::string_view line,
+                            const std::string_view function,
+                            const std::string_view src_file,
+                            const std::string_view message)
+{
+    size_t record_size = estimate_record_size(line.size() + function.size()  //
+                                              + src_file.size() + message.size());
+
+    if ((_data->_current_file_size + record_size) > _data->_max_file_size  //
+        && _data->_max_files > 0) [[unlikely]]
+        rotate();
+    _data->_current_file_size += record_size;
+
+    write_record<use_utc>(lvl_str, line, function, src_file, message);
+}
+
+template void featurless::log::write<false>(const std::string_view lvl_str,
+                                            const std::string_view line,
+                                            const std::string_view function,
+                                            const std::string_view src_file,
+                                            const std::string_view message);
+
+template void featurless::log::write<true>(const std::string_view lvl_str,
+                                           const std::string_view line,
+                                           const std::string_view function,
+                                           const std::string_view src_file,
+                                           const std::string_view message);
+
+template<typename int_t>
+inline void copy_hex(char* dest, int_t integer) noexcept
+{
+    constexpr std::array<char, 16> digits{ '0', '1', '2', '3', '4', '5', '6', '7',
+                                           '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    while (integer > 0)
+    {
+        *dest = digits[integer % 16];
+        integer /= 16;
+        --dest;
+    }
+}
+
+inline unsigned long int fucking_std_thread_id() noexcept
+{
+#if _MSC_VER > 0
+    auto stupid_std_id = std::this_thread::get_id();
+    return *reinterpret_cast<unsigned int*>(&stupid_std_id);
+#elif defined(__GNUC__)  // dont know if it works on intel comiler
+    auto stupid_std_id = std::this_thread::get_id();
+    return *reinterpret_cast<unsigned long int*>(&stupid_std_id);
+#else                    // no thread id for you
+    constexpr int noid{ 0 };
+    return noid;
+#endif
+}
 
 inline tm __featurless_localtime_s() noexcept
 {
@@ -63,41 +126,6 @@ inline tm __featurless_gmtime_s() noexcept
     return t;
 }
 
-constexpr size_t estimate_record_size(size_t dynamic_size) noexcept
-{
-    return 51 + dynamic_size;
-}
-
-template<bool use_utc>
-void featurless::log::write(const std::string_view level,
-                            const std::string_view line,
-                            const std::string_view function,
-                            const std::string_view src_file,
-                            const std::string_view message)
-{
-    size_t record_size = estimate_record_size(line.size() + function.size()  //
-                                              + src_file.size() + message.size());
-
-    if ((_data->_current_file_size + record_size) > _data->_max_file_size  //
-        && _data->_max_files > 0) [[unlikely]]
-        rotate();
-    _data->_current_file_size += record_size;
-
-    write_record<use_utc>(level, line, function, src_file, message);
-}
-
-template void featurless::log::write<false>(const std::string_view level,
-                                            const std::string_view line,
-                                            const std::string_view function,
-                                            const std::string_view src_file,
-                                            const std::string_view message);
-
-template void featurless::log::write<true>(const std::string_view level,
-                                           const std::string_view line,
-                                           const std::string_view function,
-                                           const std::string_view src_file,
-                                           const std::string_view message);
-
 template<typename int_t>
 static void copy_int(char* dest, int_t integer) noexcept
 {
@@ -105,35 +133,8 @@ static void copy_int(char* dest, int_t integer) noexcept
     dest[1] = '0' + static_cast<char>(integer % 10);
 }
 
-template<typename int_t>
-static void copy_hex(char* dest, int_t integer) noexcept
-{
-    constexpr std::array<char, 16> digits{ '0', '1', '2', '3', '4', '5', '6', '7',
-                                           '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-    while (integer > 0)
-    {
-        *dest = digits[integer % 16];
-        integer /= 16;
-        --dest;
-    }
-}
-
-inline unsigned long int fucking_std_thread_id() noexcept
-{
-#if _MSC_VER > 0
-    auto stupid_std_id = std::this_thread::get_id();
-    return *reinterpret_cast<unsigned int*>(&stupid_std_id);
-#elif defined(__GNUC__)  // dont know if it works on intel comiler
-    auto stupid_std_id = std::this_thread::get_id();
-    return *reinterpret_cast<unsigned long int*>(&stupid_std_id);
-#else                    // no thread id for you
-    constexpr int noid{ 0 };
-    return noid;
-#endif
-}
-
 template<bool use_utc>
-void featurless::log::write_record(const std::string_view level,
+void featurless::log::write_record(const std::string_view lvl_str,
                                    const std::string_view line,
                                    const std::string_view function,
                                    const std::string_view src_file,
@@ -144,11 +145,12 @@ void featurless::log::write_record(const std::string_view level,
         time_info = __featurless_gmtime_s();
     else
         time_info = __featurless_localtime_s();
-    std::string msg_buffer(msg_buffer.size() + line.size() + function.size() + src_file.size()
-                             + message.size() + 7,
-                           ' ');
-    msg_buffer.resize(0);
-    msg_buffer += "[2000-00-00 00:00:00][000000000000][     ][";
+
+    std::size_t length_buffer =
+      51 + line.size() + function.size() + src_file.size() + message.size();
+
+    std::string msg_buffer(length_buffer, ' ');
+    std::memcpy(msg_buffer.data(), "[2000-00-00 00:00:00][000000000000][     ][", 44);
 
     copy_int(msg_buffer.data() + 3, time_info.tm_year - 100);
     copy_int(msg_buffer.data() + 6, time_info.tm_mon + 1);
@@ -157,7 +159,7 @@ void featurless::log::write_record(const std::string_view level,
     copy_int(msg_buffer.data() + 15, time_info.tm_min);
     copy_int(msg_buffer.data() + 18, time_info.tm_sec);
     copy_hex(msg_buffer.data() + 33, fucking_std_thread_id());
-    std::memcpy(msg_buffer.data() + 36, level.data(), level.size());
+    std::memcpy(msg_buffer.data() + 36, lvl_str.data(), lvl_str.size());
     char* ptr_data = msg_buffer.data() + 43;
     std::memcpy(ptr_data, function.data(), function.size());
     ptr_data += function.size();
@@ -190,7 +192,7 @@ void featurless::log::rotate()
                                 nothrow_if_fail);
     }
     _data->_current_file_size = 0;
-    _data->_ofstream.open(build_file_name(0));
+    _data->_ofstream.open(build_file_name(0), std::ios::binary);
 }
 
 std::string featurless::log::build_file_name(int file_number)
@@ -234,7 +236,8 @@ void featurless::log::init(const char* logfile_path, size_t max_size_kB, short m
     p.remove_filename();
     std::filesystem::create_directories(p);
 
-    _instance._data->_ofstream.open(_instance.build_file_name(0), std::ios_base::app);
+    _instance._data->_ofstream.open(_instance.build_file_name(0),
+                                    std::ios_base::app | std::ios::binary);
 }
 
 featurless::log::~log()

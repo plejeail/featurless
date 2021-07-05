@@ -5,7 +5,7 @@
 #include <iomanip>
 #include <sstream>
 #define FEATURLESS_LOG_MIN_LEVEL FLOG_LEVEL_TRACE
-#define FEATURLESS_LOG_USE_UTC
+// #define FEATURLESS_LOG_USE_UTC
 #include <featurless/log.h>
 
 int main()
