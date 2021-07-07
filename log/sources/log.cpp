@@ -29,8 +29,7 @@ struct featurless::log::impl
     std::mutex _mutex;
 };
 
-
-constexpr size_t estimate_record_size(size_t dynamic_size) noexcept
+inline size_t estimate_record_size(size_t dynamic_size) noexcept
 {
     return 51 + dynamic_size;
 }
@@ -66,7 +65,7 @@ template void featurless::log::write<true>(const std::string_view lvl_str,
                                            const std::string_view message);
 
 template<typename int_t>
-inline void copy_hex(char* dest, int_t integer) noexcept
+inline void copy_hex(char* const dest, const int_t integer) noexcept
 {
     constexpr std::array<char, 16> digits{ '0', '1', '2', '3', '4', '5', '6', '7',
                                            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
@@ -134,11 +133,11 @@ static void copy_int(char* dest, int_t integer) noexcept
 }
 
 template<bool use_utc>
-void featurless::log::write_record(const std::string_view lvl_str,
-                                   const std::string_view line,
-                                   const std::string_view function,
-                                   const std::string_view src_file,
-                                   const std::string_view message)
+inline void featurless::log::write_record(const std::string_view lvl_str,
+                                          const std::string_view line,
+                                          const std::string_view function,
+                                          const std::string_view src_file,
+                                          const std::string_view message)
 {
     tm time_info;
     if constexpr (use_utc)
@@ -177,7 +176,7 @@ void featurless::log::write_record(const std::string_view lvl_str,
     ptr_data[message.size()] = '\n';
 
     std::scoped_lock s{ _data->_mutex };
-    _data->_ofstream << msg_buffer;
+    _data->_ofstream.write(msg_buffer.data(), static_cast<std::streamsize>(msg_buffer.size()));
 }
 
 void featurless::log::rotate()
