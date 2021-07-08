@@ -1,6 +1,5 @@
 ---
-Checks:          '*,-fuchsia-*,-google-*,-zircon-*,-abseil-*,-modernize-use-trailing-return-type,-llvm*,google-build-*,google-default-arguments,google-explicit-constructor,-modernize-use-auto,-hicpp-braces-around-statements,-readability-braces-around-statements,-readability-else-after-return,-cppcoreguidelines-pro-bounds-pointer-arithmetic,-cppcoreguidelines-owning-memory,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-hicpp-no-array-decay,-warnings-as-errors'
+Checks:          '*,-fuchsia-*,-google-*,-zircon-*,-abseil-*,-modernize-use-trailing-return-type,-llvm*,google-build-*,google-default-arguments,google-explicit-constructor,-modernize-use-auto,-hicpp-braces-around-statements,-readability-braces-around-statements,-readability-else-after-return,-cppcoreguidelines-pro-bounds-pointer-arithmetic,-cppcoreguidelines-owning-memory,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-hicpp-no-array-decay,-warnings-as-errors,-cppcoreguidelines-pro-bounds-constant-array-index,-hicpp-use-auto,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers,-cppcoreguidelines-pro-type-reinterpret-cast,-cert-err58-cpp,-cppcoreguidelines-pro-type-vararg,-hicpp-vararg,-cppcoreguidelines-avoid-non-const-global-variables,-bugprone-reserved-identifier,-altera-struct-pack-align,-cert-dcl37-c,-cert-dcl51-cpp'
 WarningsAsErrors: '*'
 HeaderFilterRegex: '*'
 FormatStyle:     none
-
