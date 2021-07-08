@@ -17,16 +17,46 @@ int main()
     std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
     for (int i = 0; i < 300; ++i)
     {
-        FLOG_DEBUG("OK TEST");
-        FLOG_DEBUG("OK TEST");
-        FLOG_DEBUG("OK TEST");
-        FLOG_DEBUG("OK TEST");
-        FLOG_DEBUG("OK TEST");
-        FLOG_DEBUG("OK TEST");
-        FLOG_DEBUG("OK TEST");
-        FLOG_DEBUG("OK TEST");
-        FLOG_DEBUG("OK TEST");
-        FLOG_DEBUG("OK TEST");
+        FLOG_DEBUG(
+          "As a data scientist, reading and writing data from/to CSV is one of the most common"
+          " tasks I do on the daily. R, my language of choice, makes this easy with read.csv() "
+          "and write.csv()");
+        FLOG_DEBUG(
+          "As a data scientist, reading and writing data from/to CSV is one of the most common"
+          " tasks I do on the daily. R, my language of choice, makes this easy with read.csv() "
+          "and write.csv()");
+        FLOG_DEBUG(
+          "As a data scientist, reading and writing data from/to CSV is one of the most common"
+          " tasks I do on the daily. R, my language of choice, makes this easy with read.csv() "
+          "and write.csv()");
+        FLOG_DEBUG(
+          "As a data scientist, reading and writing data from/to CSV is one of the most common"
+          " tasks I do on the daily. R, my language of choice, makes this easy with read.csv() "
+          "and write.csv()");
+        FLOG_DEBUG(
+          "As a data scientist, reading and writing data from/to CSV is one of the most common"
+          " tasks I do on the daily. R, my language of choice, makes this easy with read.csv() "
+          "and write.csv()");
+        FLOG_DEBUG(
+          "As a data scientist, reading and writing data from/to CSV is one of the most common"
+          " tasks I do on the daily. R, my language of choice, makes this easy with read.csv() "
+          "and write.csv()");
+        FLOG_DEBUG(
+          "As a data scientist, reading and writing data from/to CSV is one of the most common"
+          " tasks I do on the daily. R, my language of choice, makes this easy with read.csv() "
+          "and write.csv()");
+        FLOG_DEBUG(
+          "As a data scientist, reading and writing data from/to CSV is one of the most common"
+          " tasks I do on the daily. R, my language of choice, makes this easy with read.csv() "
+          "and write.csv()");
+        FLOG_DEBUG(
+          "As a data scientist, reading and writing data from/to CSV is one of the most common"
+          " tasks I do on the daily. R, my language of choice, makes this easy with read.csv() "
+          "and write.csv()");
+        FLOG_DEBUG(
+          "As a data scientist, reading and writing data from/to CSV is one of the most common"
+          " tasks I do on the daily. R, my language of choice, makes this easy with read.csv() "
+          "and write.csv()");
     }
     std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
     for (int i = 0; i < 300; ++i)

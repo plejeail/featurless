@@ -125,7 +125,7 @@ public:
     static log& logger() noexcept { return _instance; }
 
     template<bool use_utc>
-    void write(const std::string_view level,
+    void write(const std::string_view lvl_str,
                const std::string_view line,
                const std::string_view function,
                const std::string_view src_file,
@@ -137,7 +137,7 @@ private:
     static log _instance;
 
     template<bool use_utc>
-    void write_record(const std::string_view level,
+    void write_record(const std::string_view lvl_str,
                       const std::string_view line,
                       const std::string_view function,
                       const std::string_view src_file,
@@ -191,3 +191,4 @@ consteval std::string_view __level_to_string() noexcept
 #endif
 }  // namespace featurless
 #endif  // FEATURLESS_LOG_HEADER_GUARD
+

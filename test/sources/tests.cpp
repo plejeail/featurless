@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-enum class FilterType : int8_t
+enum class FilterType
 {
     none = 0,
     enabled = 1,
@@ -103,7 +103,7 @@ void featurless::test::add_group(const char* const group_name)
     }
 }
 
-inline bool featurless::test::__check(const char* const description, bool condition)
+inline bool featurless::test::internal_check(const char* const description, bool condition)
 {
     if (_data->global_stats.status != StatusCode::ok)
         return false;
@@ -120,9 +120,9 @@ inline bool featurless::test::__check(const char* const description, bool condit
     return condition;
 }
 
-inline bool featurless::test::__check(const char* const description,
-                                      const char* const group_name,
-                                      bool condition)
+inline bool featurless::test::internal_check(const char* const description,
+                                             const char* const group_name,
+                                             bool condition)
 {
     Stats& stats = _data->groups_stats[group_name];
     if (_data->global_stats.status != StatusCode::ok || stats.status != StatusCode::ok)
@@ -145,13 +145,13 @@ inline bool featurless::test::__check(const char* const description,
 void featurless::test::check(const char* const description, bool condition)
 {
     ++_data->global_stats.count_total;
-    __check(description, condition);
+    internal_check(description, condition);
 }
 
 void featurless::test::require(const char* const description, bool condition)
 {
     ++_data->global_stats.count_total;
-    bool success = __check(description, condition);
+    bool success = internal_check(description, condition);
     if (!success && _data->global_stats.status != StatusCode::help)
         _data->global_stats.status = StatusCode::requirefail;
 }
@@ -159,13 +159,13 @@ void featurless::test::require(const char* const description, bool condition)
 void featurless::test::check(const char* const description, featurless::test::testfun_t condition)
 {
     ++_data->global_stats.count_total;
-    __check(description, condition());
+    internal_check(description, condition());
 }
 
 void featurless::test::require(const char* const description, featurless::test::testfun_t condition)
 {
     ++_data->global_stats.count_total;
-    bool success = __check(description, condition());
+    bool success = internal_check(description, condition());
     if (!success && _data->global_stats.status != StatusCode::help)
         _data->global_stats.status = StatusCode::requirefail;
 }
@@ -196,7 +196,7 @@ void featurless::test::check(const char* const group_name,
 {
     ++_data->global_stats.count_total;
     if (is_group_enabled(group_name))
-        __check(description, group_name, condition);
+        internal_check(description, group_name, condition);
 }
 
 void featurless::test::require(const char* const group_name,
@@ -206,7 +206,7 @@ void featurless::test::require(const char* const group_name,
     ++_data->global_stats.count_total;
     if (is_group_enabled(group_name))
     {
-        bool success = __check(description, group_name, condition);
+        bool success = internal_check(description, group_name, condition);
         if (!success)
             _data->groups_stats[group_name].status = StatusCode::requirefail;
     }
@@ -218,7 +218,7 @@ void featurless::test::check(const char* const group_name,
 {
     ++_data->global_stats.count_total;
     if (is_group_enabled(group_name))
-        __check(description, group_name, condition());
+        internal_check(description, group_name, condition());
 }
 
 void featurless::test::require(const char* const group_name,
@@ -228,7 +228,7 @@ void featurless::test::require(const char* const group_name,
     ++_data->global_stats.count_total;
     if (is_group_enabled(group_name))
     {
-        bool success = __check(description, group_name, condition());
+        bool success = internal_check(description, group_name, condition());
         if (!success)
             _data->groups_stats[group_name].status = StatusCode::requirefail;
     }
@@ -270,3 +270,4 @@ int featurless::test::status() const noexcept
              ? 0
              : static_cast<int>(_data->global_stats.status);
 }
+

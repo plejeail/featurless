@@ -14,5 +14,7 @@ target_include_directories(${PROJECT_NAME}
 set_project_warnings(${PROJECT_NAME})
 set_target_sanitizer(${PROJECT_NAME})
 
-add_library(featurless::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+if (NOT MAIN_PROJECT)
+    add_library(featurless::test ALIAS ${PROJECT_NAME})
+endif()
 

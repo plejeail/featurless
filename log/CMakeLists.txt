@@ -7,6 +7,10 @@ cmake_minimum_required(VERSION 3.20)
 
 # Project configuration.........................................................
 project(FEATURLESS_LOGGER VERSION 1.0.0)
+set(MAIN_PROJECT OFF)
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(MAIN_PROJECT ON)
+endif()
 
 option(BUILD_TESTS "Build tests executable" ON)
 

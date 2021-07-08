@@ -19,9 +19,9 @@ featurless::log featurless::log::_instance;
 struct featurless::log::impl
 {
     std::ofstream _ofstream;
-    size_t _current_file_size;
-    size_t _max_file_size;
-    short _max_files;
+    std::size_t _current_file_size{ 0 };
+    std::size_t _max_file_size{ 0 };
+    short _max_files{ 0 };
 
     std::string _file_path;
     std::string _file_name;
@@ -65,7 +65,7 @@ template void featurless::log::write<true>(const std::string_view lvl_str,
                                            const std::string_view message);
 
 template<typename int_t>
-inline void copy_hex(char* const dest, const int_t integer) noexcept
+inline void copy_hex(char* dest, int_t integer) noexcept
 {
     constexpr std::array<char, 16> digits{ '0', '1', '2', '3', '4', '5', '6', '7',
                                            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
@@ -139,7 +139,7 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
                                           const std::string_view src_file,
                                           const std::string_view message)
 {
-    tm time_info;
+    tm time_info;  // NOLINT
     if constexpr (use_utc)
         time_info = __featurless_gmtime_s();
     else
@@ -243,3 +243,4 @@ featurless::log::~log()
 {
     delete _data;
 }
+
