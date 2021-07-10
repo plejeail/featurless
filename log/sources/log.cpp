@@ -167,11 +167,11 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
     *ptr_data++ = '(';
     std::memcpy(ptr_data, src_file.data(), src_file.size());
     ptr_data += src_file.size();
-    *ptr_data++ += ',';
+    *ptr_data++ = ',';
     std::memcpy(ptr_data, line.data(), line.size());
     ptr_data += line.size();
     *ptr_data++ = ')';
-    *ptr_data++ = ' ';
+    *ptr_data++ = '\t';
     std::memcpy(ptr_data, message.data(), message.size());
     ptr_data[message.size()] = '\n';
 
