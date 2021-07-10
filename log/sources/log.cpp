@@ -146,7 +146,7 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
         time_info = __featurless_localtime_s();
 
     std::size_t length_buffer =
-      51 + line.size() + function.size() + src_file.size() + message.size();
+      50 + line.size() + function.size() + src_file.size() + message.size();
 
     std::string msg_buffer(length_buffer, ' ');
     std::memcpy(msg_buffer.data(), "[2000-00-00 00:00:00][000000000000][     ][", 44);
