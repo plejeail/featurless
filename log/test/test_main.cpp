@@ -12,7 +12,7 @@ int main()
 {
     std::iostream::sync_with_stdio(false);
 
-    featurless::log::init("./Logs/myapp.log", 3000, 10);
+    featurless::log::init("myapp.log", 3000, 10);
     FLOG_DEBUG("OK TEST");
     std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
     for (int i = 0; i < 300; ++i)

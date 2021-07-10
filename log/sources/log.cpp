@@ -223,17 +223,18 @@ void featurless::log::init(const char* logfile_path, size_t max_size_kB, short m
     _instance._data->_max_files = max_files;
 
     std::filesystem::path p{ logfile_path };
-    std::error_code nothrow_if_fail;
-    _instance._data->_current_file_size = std::filesystem::file_size(logfile_path, nothrow_if_fail);
+    std::error_code file_size_fail;
+    _instance._data->_current_file_size = std::filesystem::file_size(logfile_path, file_size_fail);
 
-    if (nothrow_if_fail)
+    if (file_size_fail)
         _instance._data->_current_file_size = 0;
 
     _instance._data->_file_ext = p.extension();
     p.replace_extension();
     _instance._data->_file_name = p;
     p.remove_filename();
-    std::filesystem::create_directories(p);
+    if (!p.empty())
+        std::filesystem::create_directories(p);
 
     _instance._data->_ofstream.open(_instance.build_file_name(0),
                                     std::ios_base::app | std::ios::binary);
@@ -243,4 +244,3 @@ featurless::log::~log()
 {
     delete _data;
 }
-
