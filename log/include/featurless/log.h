@@ -40,7 +40,7 @@
 #define FEATURLESS_LOG_LEVEL_NONE  6
 
 #if !defined(FEATURLESS_LOG_MIN_LEVEL)
-#define FEATURLESS_LOG_MIN_LEVEL FEATURLESS_LOG_LEVEL_INFO
+#define FEATURLESS_LOG_MIN_LEVEL FEATURLESS_LOG_LEVEL_TRACE
 #endif
 
 #if defined(FEATURLESS_LOG_USE_UTC)
@@ -49,7 +49,7 @@
 #define FEATURLESS_LOG_TIME_UTC false
 #endif
 
-#if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_TRACE
+#if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_TRACE
 #define FLOG_TRACE(message)                                                                \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                              \
       featurless::__level_to_string<featurless::log::level::trace>(),                      \
@@ -58,7 +58,7 @@
 #else
 #define FLOG_TRACE(message)
 #endif
-#if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_DEBUG
+#if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_DEBUG
 #define FLOG_DEBUG(message)                                                                \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                              \
       featurless::__level_to_string<featurless::log::level::debug>(),                      \
@@ -67,7 +67,7 @@
 #else
 #define FLOG_DEBUG(message)
 #endif
-#if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_INFO
+#if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_INFO
 #define FLOG_INFO(message)                                                                 \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                              \
       featurless::__level_to_string<featurless::log::level::info>(),                       \
@@ -76,7 +76,7 @@
 #else
 #define FLOG_INFO(message)
 #endif
-#if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_WARN
+#if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_WARN
 #define FLOG_WARN(message)                                                                 \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                              \
       featurless::__level_to_string<featurless::log::level::warning>(),                    \
@@ -85,7 +85,7 @@
 #else
 #define FLOG_WARN(message)
 #endif
-#if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_ERROR
+#if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_ERROR
 #define FLOG_ERROR(message)                                                                \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                              \
       featurless::__level_to_string<featurless::log::level::error>(),                      \
@@ -94,7 +94,7 @@
 #else
 #define FLOG_ERROR(message)
 #endif
-#if FEATURLESS_LOG_MIN_LEVEL <= FLOG_LEVEL_FATAL
+#if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_FATAL
 #define FLOG_FATAL(message)                                                                \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                              \
       featurless::__level_to_string<featurless::log::level::fatal>(),                      \
