@@ -4,7 +4,6 @@
 #include <filesystem>
 #include <fstream>
 #include <mutex>
-#include <string>
 #include <string_view>
 #include <thread>
 
@@ -18,20 +17,18 @@ featurless::log featurless::log::_instance;
 
 struct featurless::log::impl
 {
-    std::ofstream _ofstream;
     std::size_t _current_file_size{ 0 };
     std::size_t _max_file_size{ 0 };
+    std::ofstream _stream;
     short _max_files{ 0 };
 
-    std::string _file_path;
-    std::string _file_name;
-    std::string _file_ext;
+    std::filesystem::path _file_path;
     std::mutex _mutex;
 };
 
 inline size_t estimate_record_size(size_t dynamic_size) noexcept
 {
-    return 51 + dynamic_size;
+    return 50 + dynamic_size;
 }
 
 template<bool use_utc>
@@ -145,21 +142,20 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
     else
         time_info = __featurless_localtime_s();
 
-    std::size_t length_buffer =
-      50 + line.size() + function.size() + src_file.size() + message.size();
+    std::size_t length_buffer = 50 + line.size() + function.size()  //
+                                + src_file.size() + message.size();
 
-    std::string msg_buffer(length_buffer, ' ');
-    std::memcpy(msg_buffer.data(), "[2000-00-00 00:00:00][000000000000][     ][", 44);
-
-    copy_int(msg_buffer.data() + 3, time_info.tm_year - 100);
-    copy_int(msg_buffer.data() + 6, time_info.tm_mon + 1);
-    copy_int(msg_buffer.data() + 9, time_info.tm_mday);
-    copy_int(msg_buffer.data() + 12, time_info.tm_hour);
-    copy_int(msg_buffer.data() + 15, time_info.tm_min);
-    copy_int(msg_buffer.data() + 18, time_info.tm_sec);
-    copy_hex(msg_buffer.data() + 33, fucking_std_thread_id());
-    std::memcpy(msg_buffer.data() + 36, lvl_str.data(), lvl_str.size());
-    char* ptr_data = msg_buffer.data() + 43;
+    char* msg_buffer = reinterpret_cast<char*>(malloc(length_buffer));
+    std::memcpy(msg_buffer, "[2000-00-00 00:00:00][000000000000][     ][", 44);
+    copy_int(msg_buffer + 3, time_info.tm_year - 100);
+    copy_int(msg_buffer + 6, time_info.tm_mon + 1);
+    copy_int(msg_buffer + 9, time_info.tm_mday);
+    copy_int(msg_buffer + 12, time_info.tm_hour);
+    copy_int(msg_buffer + 15, time_info.tm_min);
+    copy_int(msg_buffer + 18, time_info.tm_sec);
+    copy_hex(msg_buffer + 33, fucking_std_thread_id());
+    std::memcpy(msg_buffer + 36, lvl_str.data(), lvl_str.size());
+    char* ptr_data = msg_buffer + 43;
     std::memcpy(ptr_data, function.data(), function.size());
     ptr_data += function.size();
     *ptr_data++ = ']';
@@ -176,13 +172,14 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
     ptr_data[message.size()] = '\n';
 
     std::scoped_lock s{ _data->_mutex };
-    _data->_ofstream.write(msg_buffer.data(), static_cast<std::streamsize>(msg_buffer.size()));
+    _data->_stream.write(msg_buffer, static_cast<std::streamsize>(length_buffer));
+    free(msg_buffer);
 }
 
 void featurless::log::rotate()
 {
     std::scoped_lock s{ _data->_mutex };
-    _data->_ofstream.close();
+    _data->_stream.close();
 
     for (int file_number = _data->_max_files - 2; file_number >= 0; --file_number)
     {
@@ -191,23 +188,23 @@ void featurless::log::rotate()
                                 nothrow_if_fail);
     }
     _data->_current_file_size = 0;
-    _data->_ofstream.open(build_file_name(0), std::ios::binary);
+    _data->_stream.open(build_file_name(0), std::ios::binary);
 }
 
 std::string featurless::log::build_file_name(int file_number)
 {
     constexpr size_t estimated_number_digits = 2;  // if more than 2 digits, 2x allocation
     std::string filename;
-    filename.reserve(_data->_file_name.size() + _data->_file_ext.size() + estimated_number_digits);
-    filename += _data->_file_name;
+    filename.reserve(_data->_file_path.string().size() + estimated_number_digits);
+    filename += _data->_file_path.filename();
     if (file_number > 0)
     {
         filename += '.';
         filename += std::to_string(file_number);
     }
-    if (!_data->_file_ext.empty())
+    if (_data->_file_path.has_extension())
     {
-        filename += _data->_file_ext;
+        filename += _data->_file_path.extension();
     }
 
     return filename;
@@ -222,22 +219,21 @@ void featurless::log::init(const char* logfile_path, size_t max_size_kB, short m
     _instance._data->_max_file_size = max_size_kB * 1000;
     _instance._data->_max_files = max_files;
 
-    std::filesystem::path p{ logfile_path };
+    _instance._data->_file_path = std::filesystem::path(logfile_path);
     std::error_code file_size_fail;
     _instance._data->_current_file_size = std::filesystem::file_size(logfile_path, file_size_fail);
 
     if (file_size_fail)
         _instance._data->_current_file_size = 0;
 
-    _instance._data->_file_ext = p.extension();
-    p.replace_extension();
-    _instance._data->_file_name = p;
-    p.remove_filename();
-    if (!p.empty())
-        std::filesystem::create_directories(p);
+    if (!_instance._data->_file_path.parent_path().empty())
+        std::filesystem::create_directories(_instance._data->_file_path.parent_path());
 
-    _instance._data->_ofstream.open(_instance.build_file_name(0),
-                                    std::ios_base::app | std::ios::binary);
+    //     const unsigned int buffer_length = 2048;
+    //     char* buffer = reinterpret_cast<char*>(malloc(buffer_length));
+    //     _instance._data->_stream.rdbuf()->pubsetbuf(buffer, buffer_length);
+    _instance._data->_stream.open(_instance.build_file_name(0),
+                                  std::ios_base::app | std::ios::binary);
 }
 
 featurless::log::~log()
