@@ -12,10 +12,10 @@ int main()
 {
     std::iostream::sync_with_stdio(false);
 
-    featurless::log::init("myapp.log", 30000, 10);
+    featurless::log::init("myapp.log", 3000, 10);
     FLOG_DEBUG("OK TEST");
     std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
-    for (int i = 0; i < 30; ++i)
+    for (int i = 0; i < 300; ++i)
     {
         FLOG_DEBUG(
           "As a data scientist, reading and writing data from/to CSV is one of the most common"
@@ -59,7 +59,7 @@ int main()
           "and write.csv()");
     }
     std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-    for (int i = 0; i < 30; ++i)
+    for (int i = 0; i < 300; ++i)
     {
         std::cout
           << "[2021-06-28 11:41:52][000000000000][debug][main]@(test_main.cpp,20) OK TEST\n";
@@ -89,10 +89,10 @@ int main()
     std::cout << "thread: " << s.str();
 
     std::cout << "time (ns): "
-              << std::chrono::duration_cast<std::chrono::nanoseconds>((t2 - t1)).count() / 300
+              << std::chrono::duration_cast<std::chrono::nanoseconds>((t2 - t1)).count() / 3000
               << '\n'
               << "base (ns): "
-              << std::chrono::duration_cast<std::chrono::nanoseconds>((t3 - t2)).count() / 300
+              << std::chrono::duration_cast<std::chrono::nanoseconds>((t3 - t2)).count() / 3000
               << "ns ("
               << static_cast<float>(
                    std::chrono::duration_cast<std::chrono::nanoseconds>((t2 - t1)).count())
