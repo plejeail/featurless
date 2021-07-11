@@ -31,7 +31,7 @@ struct featurless::log::impl
 
 inline size_t estimate_record_size(size_t dynamic_size) noexcept
 {
-    return 51 + dynamic_size;
+    return 50 + dynamic_size;
 }
 
 template<bool use_utc>
@@ -148,18 +148,18 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
     std::size_t length_buffer =
       50 + line.size() + function.size() + src_file.size() + message.size();
 
-    std::string msg_buffer(length_buffer, ' ');
-    std::memcpy(msg_buffer.data(), "[2000-00-00 00:00:00][000000000000][     ][", 44);
+    char* msg_buffer = reinterpret_cast<char*>(malloc(length_buffer));
+    std::memcpy(msg_buffer, "[2000-00-00 00:00:00][000000000000][     ][", 44);
 
-    copy_int(msg_buffer.data() + 3, time_info.tm_year - 100);
-    copy_int(msg_buffer.data() + 6, time_info.tm_mon + 1);
-    copy_int(msg_buffer.data() + 9, time_info.tm_mday);
-    copy_int(msg_buffer.data() + 12, time_info.tm_hour);
-    copy_int(msg_buffer.data() + 15, time_info.tm_min);
-    copy_int(msg_buffer.data() + 18, time_info.tm_sec);
-    copy_hex(msg_buffer.data() + 33, fucking_std_thread_id());
-    std::memcpy(msg_buffer.data() + 36, lvl_str.data(), lvl_str.size());
-    char* ptr_data = msg_buffer.data() + 43;
+    copy_int(msg_buffer + 3, time_info.tm_year - 100);
+    copy_int(msg_buffer + 6, time_info.tm_mon + 1);
+    copy_int(msg_buffer + 9, time_info.tm_mday);
+    copy_int(msg_buffer + 12, time_info.tm_hour);
+    copy_int(msg_buffer + 15, time_info.tm_min);
+    copy_int(msg_buffer + 18, time_info.tm_sec);
+    copy_hex(msg_buffer + 33, fucking_std_thread_id());
+    std::memcpy(msg_buffer + 36, lvl_str.data(), lvl_str.size());
+    char* ptr_data = msg_buffer + 43;
     std::memcpy(ptr_data, function.data(), function.size());
     ptr_data += function.size();
     *ptr_data++ = ']';
@@ -176,7 +176,7 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
     ptr_data[message.size()] = '\n';
 
     std::scoped_lock s{ _data->_mutex };
-    _data->_ofstream.write(msg_buffer.data(), static_cast<std::streamsize>(msg_buffer.size()));
+    _data->_ofstream.write(msg_buffer, static_cast<std::streamsize>(length_buffer));
 }
 
 void featurless::log::rotate()
