@@ -146,9 +146,14 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
         time_info = __featurless_localtime_s();
 
     std::size_t length_buffer =
-      50 + line.size() + function.size() + src_file.size() + message.size();
-
+      estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
+#if defined(_WIN32)
+    char* msg_buffer = reinterpret_cast<char*>(_alloca(length_buffer));
+#elif defined(__GNUC__)
+    char* msg_buffer = reinterpret_cast<char*>(alloca(length_buffer));
+#else
     char* msg_buffer = reinterpret_cast<char*>(malloc(length_buffer));
+#endif
     std::memcpy(msg_buffer, "[2000-00-00 00:00:00][000000000000][     ][", 44);
 
     copy_int(msg_buffer + 3, time_info.tm_year - 100);
@@ -162,21 +167,25 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
     char* ptr_data = msg_buffer + 43;
     std::memcpy(ptr_data, function.data(), function.size());
     ptr_data += function.size();
-    *ptr_data++ = ']';
-    *ptr_data++ = '@';
-    *ptr_data++ = '(';
+    *(ptr_data++) = ']';
+    *(ptr_data++) = '@';
+    *(ptr_data++) = '(';
     std::memcpy(ptr_data, src_file.data(), src_file.size());
     ptr_data += src_file.size();
-    *ptr_data++ = ',';
+    *(ptr_data++) = ',';
     std::memcpy(ptr_data, line.data(), line.size());
     ptr_data += line.size();
-    *ptr_data++ = ')';
-    *ptr_data++ = '\t';
+    *(ptr_data++) = ')';
+    *(ptr_data++) = '\t';
     std::memcpy(ptr_data, message.data(), message.size());
     ptr_data[message.size()] = '\n';
 
     std::scoped_lock s{ _data->_mutex };
     _data->_ofstream.write(msg_buffer, static_cast<std::streamsize>(length_buffer));
+
+#if !defined(_WIN32) && !defined(__GNUC__)
+    free(msg_buffer);
+#endif
 }
 
 void featurless::log::rotate()
