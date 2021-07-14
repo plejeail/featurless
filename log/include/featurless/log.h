@@ -129,6 +129,10 @@ public:
     ~log();
 
 private:
+    log() = default;
+    log(log&) = delete;
+    log(log&&) = delete;
+
     static log _instance;
 
     template<bool use_utc>
@@ -143,7 +147,7 @@ private:
     void rotate();
 
     struct impl;
-    impl* _data;
+    impl* _data{ nullptr };
 };
 
 #if FEATURLESS_LOG_MIN_LEVEL < FEATURLESS_LOG_LEVEL_NONE
