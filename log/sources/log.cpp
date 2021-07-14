@@ -18,6 +18,7 @@ featurless::log featurless::log::_instance;
 
 struct featurless::log::impl
 {
+    char* _streambuffer;
     std::ofstream _ofstream;
     std::size_t _current_file_size{ 0 };
     std::size_t _max_file_size{ 0 };
@@ -29,7 +30,7 @@ struct featurless::log::impl
     std::mutex _mutex;
 };
 
-inline size_t estimate_record_size(size_t dynamic_size) noexcept
+inline std::size_t estimate_record_size(std::size_t dynamic_size) noexcept
 {
     return 50 + dynamic_size;
 }
@@ -41,11 +42,9 @@ void featurless::log::write(const std::string_view lvl_str,
                             const std::string_view src_file,
                             const std::string_view message)
 {
-    size_t record_size = estimate_record_size(line.size() + function.size()  //
-                                              + src_file.size() + message.size());
+    std::size_t record_size = estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
 
-    if ((_data->_current_file_size + record_size) > _data->_max_file_size  //
-        && _data->_max_files > 0) [[unlikely]]
+    if ((_data->_current_file_size + record_size) > _data->_max_file_size && _data->_max_files > 0) [[unlikely]]
         rotate();
     _data->_current_file_size += record_size;
 
@@ -82,10 +81,10 @@ inline unsigned long int fucking_std_thread_id() noexcept
 #if _MSC_VER > 0
     auto stupid_std_id = std::this_thread::get_id();
     return *reinterpret_cast<unsigned int*>(&stupid_std_id);
-#elif defined(__GNUC__)  // dont know if it works on intel comiler
+#elif defined(__GNUC__) && !defined(__INTEL_COMPILER)  // dont know if it works on intel comiler
     auto stupid_std_id = std::this_thread::get_id();
     return *reinterpret_cast<unsigned long int*>(&stupid_std_id);
-#else                    // no thread id for you
+#else                                                  // no thread id for you, sorry
     constexpr int noid{ 0 };
     return noid;
 #endif
@@ -125,8 +124,7 @@ inline tm __featurless_gmtime_s() noexcept
     return t;
 }
 
-template<typename int_t>
-static void copy_int(char* dest, int_t integer) noexcept
+static void copy_int(char* dest, int integer) noexcept
 {
     dest[0] = '0' + static_cast<char>(integer / 10);
     dest[1] = '0' + static_cast<char>(integer % 10);
@@ -145,8 +143,7 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
     else
         time_info = __featurless_localtime_s();
 
-    std::size_t length_buffer =
-      estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
+    std::size_t length_buffer = estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
 #if defined(_WIN32)
     char* msg_buffer = reinterpret_cast<char*>(_alloca(length_buffer));
 #elif defined(__GNUC__)
@@ -196,16 +193,18 @@ void featurless::log::rotate()
     for (int file_number = _data->_max_files - 2; file_number >= 0; --file_number)
     {
         std::error_code nothrow_if_fail;
-        std::filesystem::rename(build_file_name(file_number), build_file_name(file_number + 1),
-                                nothrow_if_fail);
+        std::filesystem::rename(build_file_name(file_number), build_file_name(file_number + 1), nothrow_if_fail);
     }
     _data->_current_file_size = 0;
     _data->_ofstream.open(build_file_name(0), std::ios::binary);
+    _instance._data->_ofstream.rdbuf()->pubseekpos(static_cast<std::streamoff>(_instance._data->_max_file_size));
+    _instance._data->_ofstream.write("\n", 1);
+    _instance._data->_ofstream.rdbuf()->pubseekpos(0);
 }
 
 std::string featurless::log::build_file_name(int file_number)
 {
-    constexpr size_t estimated_number_digits = 2;  // if more than 2 digits, 2x allocation
+    constexpr std::size_t estimated_number_digits = 2;  // if more than 2 digits, 2x allocation
     std::string filename;
     filename.reserve(_data->_file_name.size() + _data->_file_ext.size() + estimated_number_digits);
     filename += _data->_file_name;
@@ -222,7 +221,10 @@ std::string featurless::log::build_file_name(int file_number)
     return filename;
 }
 
-void featurless::log::init(const char* logfile_path, size_t max_size_kB, short max_files)
+void featurless::log::init(const char* logfile_path,
+                           std::size_t max_size_kB,
+                           short max_files,
+                           std::size_t buffer_size_kB)
 {
     _instance._data = new impl();
     if (max_files < 0)
@@ -245,11 +247,23 @@ void featurless::log::init(const char* logfile_path, size_t max_size_kB, short m
     if (!p.empty())
         std::filesystem::create_directories(p);
 
-    _instance._data->_ofstream.open(_instance.build_file_name(0),
-                                    std::ios_base::app | std::ios::binary);
+    if (buffer_size_kB > 0)
+    {
+        buffer_size_kB *= 1000;
+        _instance._data->_streambuffer = new char[buffer_size_kB];
+        _instance._data->_ofstream.rdbuf()->pubsetbuf(_instance._data->_streambuffer,
+                                                      static_cast<std::streamsize>(buffer_size_kB));
+    }
+    _instance._data->_ofstream.open(_instance.build_file_name(0), std::ios_base::app | std::ios::binary);
+    // avoid fragmentation by writing at the end directly
+    _instance._data->_ofstream.rdbuf()->pubseekpos(static_cast<std::streamoff>(_instance._data->_max_file_size));
+    _instance._data->_ofstream.write("\n", 1);
+    _instance._data->_ofstream.rdbuf()->pubseekpos(static_cast<std::streamoff>(_instance._data->_current_file_size));
 }
 
 featurless::log::~log()
 {
+    if (_data->_streambuffer)
+        delete[] _data->_streambuffer;
     delete _data;
 }
