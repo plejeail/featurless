@@ -142,7 +142,7 @@ private:
                       const std::string_view src_file,
                       const std::string_view message);
 
-    std::string build_file_name(int file_number = 0);
+    void build_file_name(std::string& filename, int file_number);
 
     void rotate();
 
