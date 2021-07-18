@@ -1,18 +1,13 @@
 #include "featurless/log.h"
 
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <string>
 #include <string_view>
 #include <thread>
-
-#ifdef _WIN32
-#include <sys/time.h>
-#else  // UNIX LIKE
-#include <sys/timeb.h>
-#endif
 
 featurless::log featurless::log::_instance;
 
@@ -93,34 +88,14 @@ inline tm __featurless_localtime_s() noexcept
 {
     time_t time_now;  // NOLINT
     time(&time_now);
-    tm t{};
-#if defined(_WIN32) && defined(__BORLANDC__)
-    ::localtime_s(&time_now, &t);
-#elif defined(_WIN32) && defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)
-    t = *::localtime(&time_now);
-#elif defined(_WIN32)
-    ::localtime_s(&t, &time_now);
-#else
-    ::localtime_r(&time_now, &t);
-#endif
-    return t;
+    return *std::localtime(&time_now);
 }
 
 inline tm __featurless_gmtime_s() noexcept
 {
     time_t time_now;  // NOLINT
     time(&time_now);
-    tm t{};
-#if defined(_WIN32) && defined(__BORLANDC__)
-    ::gmtime_s(&time_now, &t);
-#elif defined(_WIN32) && defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)
-    t = *::gmtime(&time_now);
-#elif defined(_WIN32)
-    ::gmtime_s(&t, &time_now);
-#else
-    ::gmtime_r(&time_now, &t);
-#endif
-    return t;
+    return *std::gmtime(&time_now);
 }
 
 static void copy_int(char* dest, int integer) noexcept
