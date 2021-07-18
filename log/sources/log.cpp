@@ -213,7 +213,7 @@ void featurless::log::build_file_name(std::string& filename, int file_number)
     filename.reserve(_data->_file_name.size() + _data->_file_ext.size() + estimated_number_digits);
     filename.resize(0);
     filename += _data->_file_name;
-    if (file_number > 0) [[likely]]
+    if (file_number > 0)
     {
         filename += '.';
         filename += std::to_string(file_number);
