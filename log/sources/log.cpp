@@ -30,33 +30,6 @@ inline std::size_t estimate_record_size(std::size_t dynamic_size) noexcept
     return 50 + dynamic_size;
 }
 
-template<bool use_utc>
-void featurless::log::write(const std::string_view lvl_str,
-                            const std::string_view line,
-                            const std::string_view function,
-                            const std::string_view src_file,
-                            const std::string_view message)
-{
-    std::size_t record_size = estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
-
-    if ((_data->_current_file_size + record_size) > _data->_max_file_size && _data->_max_files > 0) [[unlikely]]
-        rotate();
-
-    write_record<use_utc>(lvl_str, line, function, src_file, message);
-}
-
-template void featurless::log::write<false>(const std::string_view lvl_str,
-                                            const std::string_view line,
-                                            const std::string_view function,
-                                            const std::string_view src_file,
-                                            const std::string_view message);
-
-template void featurless::log::write<true>(const std::string_view lvl_str,
-                                           const std::string_view line,
-                                           const std::string_view function,
-                                           const std::string_view src_file,
-                                           const std::string_view message);
-
 template<typename int_t>
 inline void copy_hex(char* dest, int_t integer) noexcept
 {
@@ -105,19 +78,23 @@ static void copy_int(char* dest, int integer) noexcept
 }
 
 template<bool use_utc>
-inline void featurless::log::write_record(const std::string_view lvl_str,
-                                          const std::string_view line,
-                                          const std::string_view function,
-                                          const std::string_view src_file,
-                                          const std::string_view message)
+void featurless::log::write_record(const std::string_view lvl_str,
+                                   const std::string_view line,
+                                   const std::string_view function,
+                                   const std::string_view src_file,
+                                   const std::string_view message)
 {
+    const std::size_t length_buffer =
+      estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
+    if ((_data->_current_file_size + length_buffer) > _data->_max_file_size && _data->_max_files > 0) [[unlikely]]
+        rotate();
+
     tm time_info;  // NOLINT
     if constexpr (use_utc)
         time_info = __featurless_gmtime_s();
     else
         time_info = __featurless_localtime_s();
 
-    std::size_t length_buffer = estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
 #if defined(_WIN32)
     char* msg_buffer = reinterpret_cast<char*>(_alloca(length_buffer));
 #elif defined(__GNUC__)
@@ -159,6 +136,18 @@ inline void featurless::log::write_record(const std::string_view lvl_str,
     free(msg_buffer);
 #endif
 }
+
+template void featurless::log::write_record<false>(const std::string_view lvl_str,
+                                                   const std::string_view line,
+                                                   const std::string_view function,
+                                                   const std::string_view src_file,
+                                                   const std::string_view message);
+template void featurless::log::write_record<true>(const std::string_view lvl_str,
+                                                  const std::string_view line,
+                                                  const std::string_view function,
+                                                  const std::string_view src_file,
+                                                  const std::string_view message);
+
 
 void featurless::log::rotate()
 {
@@ -235,7 +224,7 @@ void featurless::log::init(const char* logfile_path,
     }
 
     _instance._data->_ofstream.open(logfile_path, std::ios_base::app | std::ios::binary);
-    // avoid fragmentation by writing at the end directly
+    // avoid fragmentation by writing at the end directly ?
     _instance._data->_ofstream.rdbuf()->pubseekpos(static_cast<std::streamoff>(_instance._data->_max_file_size));
     _instance._data->_ofstream.write("\n", 1);
     _instance._data->_ofstream.rdbuf()->pubseekpos(static_cast<std::streamoff>(_instance._data->_current_file_size));
@@ -243,7 +232,7 @@ void featurless::log::init(const char* logfile_path,
 
 featurless::log::~log()
 {
-    _instance._data->_ofstream.flush();
+    // _instance._data->_ofstream.flush();
     delete[] _data->_streambuffer;
     delete _data;
 }

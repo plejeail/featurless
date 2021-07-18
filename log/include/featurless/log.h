@@ -17,7 +17,7 @@
 //      size_t max_size_kB = 1000;
 //      short max_nb_files = 10;
 //      featurless::log::init("./my-log-path.log", max_size_kB, max_nb_files);
-//      FLOG_TRACE("THIS MESSAGE IS NOT LOGGED");
+//      FLOG_TRACE("THIS MESSAGE IS NOT LOGGED because of FEATURLESS_LOG_MIN_LEVEL");
 //      FLOG_DEBUG("Starting application");
 //      FLOG_FATAL("Abort! Abort! Abort!");
 // }
@@ -50,58 +50,62 @@
 #endif
 
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_TRACE
-#define FLOG_TRACE(message)                                                                                       \
+#define FLOG_TRACE(...)                                                                                           \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                     \
       featurless::__level_to_string<featurless::log::level::trace>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), message)
+      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
 #else
-#define FLOG_TRACE(message)
+#define FLOG_TRACE(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_DEBUG
-#define FLOG_DEBUG(message)                                                                                       \
+#define FLOG_DEBUG(...)                                                                                           \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                     \
       featurless::__level_to_string<featurless::log::level::debug>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), message)
+      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
 #else
-#define FLOG_DEBUG(message)
+#define FLOG_DEBUG(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_INFO
-#define FLOG_INFO(message)                                                                                       \
+#define FLOG_INFO(...)                                                                                           \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                    \
       featurless::__level_to_string<featurless::log::level::info>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), message)
+      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
 #else
-#define FLOG_INFO(message)
+#define FLOG_INFO(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_WARN
-#define FLOG_WARN(message)                                                                                          \
+#define FLOG_WARN(...)                                                                                              \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                       \
       featurless::__level_to_string<featurless::log::level::warning>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), message)
+      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
 #else
-#define FLOG_WARN(message)
+#define FLOG_WARN(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_ERROR
-#define FLOG_ERROR(message)                                                                                       \
+#define FLOG_ERROR(...)                                                                                           \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                     \
       featurless::__level_to_string<featurless::log::level::error>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), message)
+      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
 #else
-#define FLOG_ERROR(message)
+#define FLOG_ERROR(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_FATAL
-#define FLOG_FATAL(message)                                                                                       \
+#define FLOG_FATAL(...)                                                                                           \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                     \
       featurless::__level_to_string<featurless::log::level::fatal>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), message)
+      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
 #else
-#define FLOG_FATAL(message)
+#define FLOG_FATAL(...)
 #endif
 
 namespace featurless
 {
 class log
 {
+    class Record
+    {
+    };
+
 public:
     enum class level : char
     {
@@ -119,13 +123,18 @@ public:
 
     static log& logger() noexcept { return _instance; }
 
-    template<bool use_utc>
-    void write(const std::string_view lvl_str,
-               const std::string_view line,
-               const std::string_view function,
-               const std::string_view src_file,
-               const std::string_view message);
-
+    template<bool use_utc, typename... args>
+    inline void write(const std::string_view lvl_str,
+                      const std::string_view line,
+                      const std::string_view function,
+                      const std::string_view src_file,
+                      const char* message,
+                      args... format_args)
+    {
+        char formatted_msg[512];
+        snprintf(formatted_msg, 512, message, format_args...);
+        write_record<use_utc>(lvl_str, line, function, src_file, formatted_msg);
+    }
     ~log();
 
 private:
