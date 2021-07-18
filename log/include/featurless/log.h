@@ -131,9 +131,16 @@ public:
                       const char* message,
                       args... format_args)
     {
-        char formatted_msg[512];
-        snprintf(formatted_msg, 512, message, format_args...);
-        write_record<use_utc>(lvl_str, line, function, src_file, formatted_msg);
+        if constexpr (sizeof...(format_args) > 0)
+        {
+            char formatted_msg[512];
+            snprintf(formatted_msg, 512, message, format_args...);
+            write_record<use_utc>(lvl_str, line, function, src_file, formatted_msg);
+        }
+        else
+        {
+            write_record<use_utc>(lvl_str, line, function, src_file, message);
+        }
     }
     ~log();
 
