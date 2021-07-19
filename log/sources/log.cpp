@@ -233,6 +233,7 @@ void featurless::log::init(const char* logfile_path,
 featurless::log::~log()
 {
     // _instance._data->_ofstream.flush();
-    delete[] _data->_streambuffer;
+    if (_data != nullptr)
+        delete[] _data->_streambuffer;
     delete _data;
 }
