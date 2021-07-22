@@ -29,8 +29,8 @@
 #ifndef FEATURLESS_LOG_HEADER_GUARD
 #define FEATURLESS_LOG_HEADER_GUARD
 
+#include <fmt/format.h>
 #include <string_view>
-
 #define FEATURLESS_LOG_LEVEL_TRACE 0
 #define FEATURLESS_LOG_LEVEL_DEBUG 1
 #define FEATURLESS_LOG_LEVEL_INFO  2
@@ -53,7 +53,7 @@
 #define FLOG_TRACE(...)                                                                                           \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                     \
       featurless::__level_to_string<featurless::log::level::trace>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
+      featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
 #else
 #define FLOG_TRACE(...)
 #endif
@@ -61,7 +61,7 @@
 #define FLOG_DEBUG(...)                                                                                           \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                     \
       featurless::__level_to_string<featurless::log::level::debug>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
+      featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
 #else
 #define FLOG_DEBUG(...)
 #endif
@@ -69,7 +69,7 @@
 #define FLOG_INFO(...)                                                                                           \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                    \
       featurless::__level_to_string<featurless::log::level::info>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
+      featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
 #else
 #define FLOG_INFO(...)
 #endif
@@ -77,7 +77,7 @@
 #define FLOG_WARN(...)                                                                                              \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                       \
       featurless::__level_to_string<featurless::log::level::warning>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
+      featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
 #else
 #define FLOG_WARN(...)
 #endif
@@ -85,7 +85,7 @@
 #define FLOG_ERROR(...)                                                                                           \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                     \
       featurless::__level_to_string<featurless::log::level::error>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
+      featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
 #else
 #define FLOG_ERROR(...)
 #endif
@@ -93,7 +93,7 @@
 #define FLOG_FATAL(...)                                                                                           \
     featurless::log::logger().write<FEATURLESS_LOG_TIME_UTC>(                                                     \
       featurless::__level_to_string<featurless::log::level::fatal>(), __FEATURLESS_STRINGIZE(__LINE__), __func__, \
-      featurless::__pretty_filename(__FILE__), __VA_ARGS__)
+      featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
 #else
 #define FLOG_FATAL(...)
 #endif
@@ -124,19 +124,9 @@ public:
                       const std::string_view line,
                       const std::string_view function,
                       const std::string_view src_file,
-                      const char* message,
-                      args... format_args)
+                      const std::string_view message)
     {
-        if constexpr (sizeof...(format_args) > 0)
-        {
-            char formatted_msg[512];
-            snprintf(formatted_msg, 512, message, format_args...);
-            write_record<use_utc>(lvl_str, line, function, src_file, formatted_msg);
-        }
-        else
-        {
-            write_record<use_utc>(lvl_str, line, function, src_file, message);
-        }
+        write_record<use_utc>(lvl_str, line, function, src_file, message);
     }
     ~log();
 

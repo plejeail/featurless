@@ -1,5 +1,6 @@
 set_target_cppcheck(${CMAKE_CURRENT_LIST_DIR})
 add_library(${PROJECT_NAME} STATIC )
+target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt)
 
 set(HEADER_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include/featurless)
 target_sources(${PROJECT_NAME} PRIVATE log.cpp ${HEADER_INCLUDE_DIR}/log.h)
@@ -10,9 +11,6 @@ target_include_directories(${PROJECT_NAME}
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-
-set_project_warnings(${PROJECT_NAME})
-set_target_sanitizer(${PROJECT_NAME})
 
 if (NOT MAIN_PROJECT)
     add_library(featurless::log ALIAS ${PROJECT_NAME})
