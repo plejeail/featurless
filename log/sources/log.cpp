@@ -124,9 +124,10 @@ void featurless::log::write_record(const std::string_view lvl_str,
     std::memcpy(ptr_data, line.data(), line.size());
     ptr_data += line.size();
     *(ptr_data++) = ')';
-    *(ptr_data++) = '\t';
+    *(ptr_data++) = '_';
     std::memcpy(ptr_data, message.data(), message.size());
     ptr_data[message.size()] = '\n';
+    ptr_data[message.size() + 1] = '_';
 
     std::scoped_lock s{ _data->_mutex };
     _data->_current_file_size += length_buffer;
@@ -166,9 +167,6 @@ void featurless::log::rotate()
     _data->_current_file_size = 0;
 
     _data->_ofstream.open(filename_current, std::ios::binary);
-    _instance._data->_ofstream.rdbuf()->pubseekpos(static_cast<std::streamoff>(_instance._data->_max_file_size));
-    _instance._data->_ofstream.write("\n", 1);
-    _instance._data->_ofstream.rdbuf()->pubseekpos(0);
 }
 
 void featurless::log::build_file_name(std::string& filename, int file_number)
@@ -224,15 +222,11 @@ void featurless::log::init(const char* logfile_path,
     }
 
     _instance._data->_ofstream.open(logfile_path, std::ios_base::app | std::ios::binary);
-    // avoid fragmentation by writing at the end directly ?
-    _instance._data->_ofstream.rdbuf()->pubseekpos(static_cast<std::streamoff>(_instance._data->_max_file_size));
-    _instance._data->_ofstream.write("\n", 1);
-    _instance._data->_ofstream.rdbuf()->pubseekpos(static_cast<std::streamoff>(_instance._data->_current_file_size));
 }
 
 featurless::log::~log()
 {
-    // _instance._data->_ofstream.flush();
+    _instance._data->_ofstream.flush();
     if (_data != nullptr)
         delete[] _data->_streambuffer;
     delete _data;

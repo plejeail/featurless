@@ -102,10 +102,6 @@ namespace featurless
 {
 class log
 {
-    class Record
-    {
-    };
-
 public:
     enum class level : char
     {
@@ -203,6 +199,7 @@ consteval std::string_view __level_to_string() noexcept
     else
         return std::string_view(" ??? ");
 }
+// #include "format.h"
 #endif
 }  // namespace featurless
 #endif  // FEATURLESS_LOG_HEADER_GUARD
