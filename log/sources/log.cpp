@@ -17,11 +17,13 @@ constexpr long SECONDS_PER_DAY = 86400UL;
 
 static time_t midnight_time(time_t t) noexcept
 {
-    return 86400UL + t - t % SECONDS_PER_DAY;
+    // return timestamp of next midnight after t
+    return 86400UL + t - (t % SECONDS_PER_DAY);
 }
 
 static time_t get_tz_gm_diff(time_t timer)
 {
+    // return diff between gmtime and local time
     struct tm* lc = localtime(&timer);
     const time_t lct = mktime(lc);
     const time_t dst = (lc->tm_isdst > 0) ? 3600 : 0;
@@ -30,6 +32,8 @@ static time_t get_tz_gm_diff(time_t timer)
 
 static time_t __tz_diff(time_t timer) noexcept
 {
+    // return diff between gmtime and local time, only once per day
+    // after that, return always the same value until next day
     static time_t tz = get_tz_gm_diff(timer);
     static time_t next_check_time = midnight_time(timer);
     if (timer > next_check_time) [[unlikely]]
@@ -66,6 +70,7 @@ struct small_tm
 
 static small_tm parse_time(time_t timer) noexcept
 {
+    // from arduino glibc, tricky.
     small_tm date;
     constexpr long DAYS_PER_CENTURY = 36525L;
     constexpr long DAYS_PER_4_YEARS = 1461L;
@@ -158,10 +163,13 @@ static small_tm parse_time(time_t timer) noexcept
 
 static small_tm featurless_localtime_s() noexcept
 {
+    // custom date parsing
+    // do not redo time zone stuff at each time, instead only check one time per
+    // day the diff with gmtime.
+    // also seems to avoid some system calls / code cache miss
     time_t time_now;  // NOLINT
     time(&time_now);
-    const time_t time_diff_local = __tz_diff(time_now);
-    return parse_time(time_now + time_diff_local);
+    return parse_time(time_now + __tz_diff(time_now));
 }
 
 inline std::size_t estimate_record_size(std::size_t dynamic_size) noexcept
@@ -172,6 +180,9 @@ inline std::size_t estimate_record_size(std::size_t dynamic_size) noexcept
 template<typename int_t>
 inline void copy_hex(char* dest, int_t integer) noexcept
 {
+    // starting from the less significant digit and formating backward as
+    // hexadecimal until end of integer. (all char digits are assumed to be set
+    // to 0 before
     constexpr std::array<char, 16> digits{ '0', '1', '2', '3', '4', '5', '6', '7',
                                            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
     while (integer > 0)
@@ -182,15 +193,17 @@ inline void copy_hex(char* dest, int_t integer) noexcept
     }
 }
 
-inline unsigned long int fucking_std_thread_id() noexcept
+inline auto fucking_std_thread_id() noexcept
 {
+    // why would any one want to make some fucking thread ids arithmetic ???!!
+    // forced to do this in order to avoid slow string streams (>10x slower)
 #if _MSC_VER > 0
     auto stupid_std_id = std::this_thread::get_id();
     return *reinterpret_cast<unsigned int*>(&stupid_std_id);
-#elif defined(__GNUC__) && !defined(__INTEL_COMPILER)  // dont know if it works on intel comiler
+#elif defined(__GNUC__)  // dont know if it works on intel comiler
     auto stupid_std_id = std::this_thread::get_id();
     return *reinterpret_cast<unsigned long int*>(&stupid_std_id);
-#else                                                  // no thread id for you, sorry
+#else                    // no thread id for you, sorry
     constexpr int noid{ 0 };
     return noid;
 #endif
@@ -198,6 +211,8 @@ inline unsigned long int fucking_std_thread_id() noexcept
 
 static void copy_int(char* dest, int integer) noexcept
 {
+    // copy integers in interval [0, 99]
+    // assume to have 2 chars in string reserved
     dest[0] = static_cast<char>('0' + integer / 10);
     dest[1] = static_cast<char>('0' + integer % 10);
 }
