@@ -16,19 +16,10 @@ endif()
 
 option(BUILD_TESTS "Build tests executable" ON)
 
-option(ENABLE_CACHE "Enable cache if available" ON)
-option(ENABLE_SANITIZER "Enable sanitizers" OFF)
-option(ENABLE_SANITIZER_MEMORY "Enable memory sanitizer" FALSE)
-option(ENABLE_SANITIZER_THREAD "Enable thread sanitizer" FALSE)
-option(ENABLE_ANALYZERS "Enable third-party found analysers (clang-tidy/cppcheck/include-what-you-use)" OFF)  
-option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
-
-# Cmake includes ...............................................................
-include("cmake/project.cmake")
-include("cmake/cxx.cmake")
-include("cmake/sanitizer.cmake")
-include("cmake/analyzers.cmake")
-include("cmake/cache.cmake")
+# Set standard feature used
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Project sources...............................................................
 add_subdirectory("sources")

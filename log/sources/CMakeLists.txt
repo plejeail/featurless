@@ -1,4 +1,3 @@
-set_target_cppcheck(${CMAKE_CURRENT_LIST_DIR})
 add_library(${PROJECT_NAME} STATIC )
 
 set(HEADER_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include/featurless)

@@ -58,15 +58,14 @@ void featurless::test::parse_args(int argc, const char** argv)
         std::string_view current_arg{ argv[i] };
         if (current_arg == "-h" || current_arg == "--help")
         {
-            std::cout
-              << "Description: \n"
-                 "Execute the featurless tests you just compiled.\n"
-                 "Arguments:\n"
-                 "\t-h, --help    \tdisplay this help and exit\n"
-                 "\t-e, --enable  \tenable only the groups of tests whose name is provided\n"
-                 "\t              \tafter this argument.\n"
-                 "\t-d, --disable \tdisable only the groups of tests whose name is provided\n"
-                 "\t              \tafter this argument.\n";
+            std::cout << "Description: \n"
+                         "Execute the featurless tests you just compiled.\n"
+                         "Arguments:\n"
+                         "\t-h, --help    \tdisplay this help and exit\n"
+                         "\t-e, --enable  \tenable only the groups of tests whose name is provided\n"
+                         "\t              \tafter this argument.\n"
+                         "\t-d, --disable \tdisable only the groups of tests whose name is provided\n"
+                         "\t              \tafter this argument.\n";
             _data->global_stats.status = StatusCode::help;
             break;
         }
@@ -103,7 +102,7 @@ void featurless::test::add_group(const char* const group_name)
     }
 }
 
-inline bool featurless::test::internal_check(const char* const description, bool condition)
+inline bool featurless::test::__check(const char* const description, bool condition)
 {
     if (_data->global_stats.status != StatusCode::ok)
         return false;
@@ -114,15 +113,12 @@ inline bool featurless::test::internal_check(const char* const description, bool
         ++_data->global_stats.count_success;
     }
     else
-        std::cout << std::left << std::setfill('.') << std::setw(line_width) << description
-                  << "Failure\n";
+        std::cout << std::left << std::setfill('.') << std::setw(line_width) << description << "Failure\n";
 
     return condition;
 }
 
-inline bool featurless::test::internal_check(const char* const description,
-                                             const char* const group_name,
-                                             bool condition)
+inline bool featurless::test::__check(const char* const description, const char* const group_name, bool condition)
 {
     Stats& stats = _data->groups_stats[group_name];
     if (_data->global_stats.status != StatusCode::ok || stats.status != StatusCode::ok)
@@ -136,8 +132,7 @@ inline bool featurless::test::internal_check(const char* const description,
         ++_data->global_stats.count_success;
     }
     else
-        std::cout << std::left << std::setfill('.') << std::setw(line_width) << description
-                  << "Failure\n";
+        std::cout << std::left << std::setfill('.') << std::setw(line_width) << description << "Failure\n";
 
     return condition;
 }
@@ -145,13 +140,13 @@ inline bool featurless::test::internal_check(const char* const description,
 void featurless::test::check(const char* const description, bool condition)
 {
     ++_data->global_stats.count_total;
-    internal_check(description, condition);
+    __check(description, condition);
 }
 
 void featurless::test::require(const char* const description, bool condition)
 {
     ++_data->global_stats.count_total;
-    bool success = internal_check(description, condition);
+    bool success = __check(description, condition);
     if (!success && _data->global_stats.status != StatusCode::help)
         _data->global_stats.status = StatusCode::requirefail;
 }
@@ -159,13 +154,13 @@ void featurless::test::require(const char* const description, bool condition)
 void featurless::test::check(const char* const description, featurless::test::testfun_t condition)
 {
     ++_data->global_stats.count_total;
-    internal_check(description, condition());
+    __check(description, condition());
 }
 
 void featurless::test::require(const char* const description, featurless::test::testfun_t condition)
 {
     ++_data->global_stats.count_total;
-    bool success = internal_check(description, condition());
+    bool success = __check(description, condition());
     if (!success && _data->global_stats.status != StatusCode::help)
         _data->global_stats.status = StatusCode::requirefail;
 }
@@ -183,30 +178,25 @@ bool featurless::test::is_group_enabled(const char* const group_name)
     if (_data->groups_stats[group_name].status != StatusCode::ok)
         return false;
 
-    const auto value =
-      std::find(_data->filter_values.cbegin(), _data->filter_values.cend(), group_name);
+    const auto value = std::find(_data->filter_values.cbegin(), _data->filter_values.cend(), group_name);
 
     return (_data->filter_type == FilterType::disabled && value == _data->filter_values.cend())
            || (_data->filter_type == FilterType::enabled && value != _data->filter_values.cend());
 }
 
-void featurless::test::check(const char* const group_name,
-                             const char* const description,
-                             bool condition)
+void featurless::test::check(const char* const group_name, const char* const description, bool condition)
 {
     ++_data->global_stats.count_total;
     if (is_group_enabled(group_name))
-        internal_check(description, group_name, condition);
+        __check(description, group_name, condition);
 }
 
-void featurless::test::require(const char* const group_name,
-                               const char* const description,
-                               bool condition)
+void featurless::test::require(const char* const group_name, const char* const description, bool condition)
 {
     ++_data->global_stats.count_total;
     if (is_group_enabled(group_name))
     {
-        bool success = internal_check(description, group_name, condition);
+        bool success = __check(description, group_name, condition);
         if (!success)
             _data->groups_stats[group_name].status = StatusCode::requirefail;
     }
@@ -218,7 +208,7 @@ void featurless::test::check(const char* const group_name,
 {
     ++_data->global_stats.count_total;
     if (is_group_enabled(group_name))
-        internal_check(description, group_name, condition());
+        __check(description, group_name, condition());
 }
 
 void featurless::test::require(const char* const group_name,
@@ -228,16 +218,13 @@ void featurless::test::require(const char* const group_name,
     ++_data->global_stats.count_total;
     if (is_group_enabled(group_name))
     {
-        bool success = internal_check(description, group_name, condition());
+        bool success = __check(description, group_name, condition());
         if (!success)
             _data->groups_stats[group_name].status = StatusCode::requirefail;
     }
 }
 
-static void print_group_summary(const std::string_view group,
-                                bool success,
-                                uint8_t nb_success,
-                                uint8_t nb_checks)
+static void print_group_summary(const std::string_view group, bool success, uint8_t nb_success, uint8_t nb_checks)
 {
     std::cout << " - (" << group << ") status: " << (success ? "OK" : "KO") << ", "
               << "successes: " << std::to_string(nb_success) << ", "
@@ -246,8 +233,7 @@ static void print_group_summary(const std::string_view group,
 
 void featurless::test::print_summary() const
 {
-    if (_data->global_stats.status == StatusCode::help
-        || _data->global_stats.status == StatusCode::argerror)
+    if (_data->global_stats.status == StatusCode::help || _data->global_stats.status == StatusCode::argerror)
         return;
 
     std::cout << "### TEST GLOBAL SUMMARY:\n"
@@ -259,15 +245,12 @@ void featurless::test::print_summary() const
 
     for (const auto& group : _data->groups_stats)
     {
-        print_group_summary(group.first, group.second.status == StatusCode::ok,
-                            group.second.count_success, group.second.count_checks);
+        print_group_summary(group.first, group.second.status == StatusCode::ok, group.second.count_success,
+                            group.second.count_checks);
     }
 }
 
 int featurless::test::status() const noexcept
 {
-    return _data->global_stats.status <= StatusCode::ok
-             ? 0
-             : static_cast<int>(_data->global_stats.status);
+    return _data->global_stats.status <= StatusCode::ok ? 0 : static_cast<int>(_data->global_stats.status);
 }
-
