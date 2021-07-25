@@ -58,110 +58,7 @@ struct featurless::log::impl
     std::mutex _mutex;
 };
 
-struct small_tm
-{
-    int tm_sec;   // Seconds. [0-60] (1 leap second)
-    int tm_min;   // Minutes. [0-59]
-    int tm_hour;  // Hours.	  [0-23]
-    int tm_mday;  // Day.     [1-31]
-    int tm_mon;   // Month.   [0-11]
-    int tm_year;  // Year     1900.
-};
-
-static small_tm parse_time(time_t timer) noexcept
-{
-    // from arduino glibc, tricky.
-    small_tm date;
-    constexpr long DAYS_PER_CENTURY = 36525L;
-    constexpr long DAYS_PER_4_YEARS = 1461L;
-    // Break down timer into whole and fractional parts of 1 day
-    uint16_t days = timer / SECONDS_PER_DAY;
-    long fract = timer % SECONDS_PER_DAY;
-
-    // Extract hour, minute, and second from the fractional day
-    date.tm_sec = fract % 60L;
-    fract /= 60L;
-    date.tm_min = fract % 60L;
-    date.tm_hour = fract / 60L;
-    /* Our epoch year has the property of being at the conjunction of
-     * all three 'leap cycles', 4, 100, and 400 years ( though we can
-     * ignore the 400 year cycle in this library). Using this property,
-     * we can easily 'map' the time stamp into the leap cycles, quickly
-     * deriving the year and day of year, along with the fact of whether
-     * it is a leap year.
-    */
-    // Map into a 100 year cycle
-    uint16_t years = 100 * ((long)days / DAYS_PER_CENTURY);
-    long remaining_days = (long)days % DAYS_PER_CENTURY;
-
-    // Map into a 4 year cycle
-    years += 4 * (remaining_days / DAYS_PER_4_YEARS);
-    days = remaining_days % DAYS_PER_4_YEARS;
-    if (years > 100)
-        days++;
-
-    /*
-     * 'years' is now at the first year of a 4 year leap cycle, which
-     * will always be a leap year, unless it is 100. 'days' is now an
-     * index into that cycle.
-    */
-    uint16_t leapyear = 1;
-    if (years == 100)
-        leapyear = 0;
-
-    // Compute length, in days, of first year of this cycle
-    uint16_t n = 364 + leapyear;
-
-    /*
-     * If the number of days remaining is greater than the length of the
-     * first year, we make one more division.
-     */
-    if (days > n)
-    {
-        days -= leapyear;
-        leapyear = 0;
-        years += days / 365;
-        days %= 365;
-    }
-    date.tm_year = years - 30;
-    /*
-     * Given the year, day of year, and leap year indicator, we can
-     * break down the month and day of month. If the day of year is less
-     * than 59 (or 60 if a leap year), then we handle the Jan/Feb month
-     * pair as an exception.
-     */
-    n = 59 + leapyear;
-    if (days < n)
-    {
-        /* special case: Jan/Feb month pair */
-        date.tm_mon = days / 31;
-        date.tm_mday = days % 31;
-    }
-    else
-    {
-        /*
-       * The remaining 10 months form a regular pattern of 31 day months
-       * alternating with 30 day months, with a 'phase change' between
-       * July and August (153 days after March 1). We proceed by mapping
-       * our position into either March-July or August-December.
-       */
-        days -= n;
-        auto temp = date.tm_mon = 2 + (days / 153) * 5;
-
-        // Map into a 61 day pair of months
-        days %= 153;
-        date.tm_mon += (days / 61) * 2;
-
-        // Map into a month/day
-        days %= 61;
-        date.tm_mon += days / 31;
-        date.tm_mday = days % 31;
-    }
-    ++date.tm_mday;
-    return (date);
-}
-
-static small_tm featurless_localtime_s() noexcept
+static tm featurless_localtime_s() noexcept
 {
     // custom date parsing
     // do not redo time zone stuff at each time, instead only check one time per
@@ -169,7 +66,8 @@ static small_tm featurless_localtime_s() noexcept
     // also seems to avoid some system calls / code cache miss
     time_t time_now;  // NOLINT
     time(&time_now);
-    return parse_time(time_now + __tz_diff(time_now));
+    time_now += __tz_diff(time_now);
+    return *std::gmtime(&time_now);
 }
 
 inline std::size_t estimate_record_size(std::size_t dynamic_size) noexcept
@@ -228,7 +126,7 @@ void featurless::log::write_record(const std::string_view lvl_str,
     if ((_data->_current_file_size + length_buffer) > _data->_max_file_size && _data->_max_files > 0) [[unlikely]]
         rotate();
 
-    small_tm time_info = featurless_localtime_s();
+    tm time_info = featurless_localtime_s();
 
 #if defined(_WIN32)
     char* msg_buffer = reinterpret_cast<char*>(_alloca(length_buffer));
