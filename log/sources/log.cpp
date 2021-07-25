@@ -1,5 +1,6 @@
 #include "featurless/log.h"
-
+#include <alloca.h>
+#include <atomic>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
@@ -9,13 +10,41 @@
 #include <string_view>
 #include <thread>
 
+#include <iostream>
 featurless::log featurless::log::_instance;
+
+constexpr long SECONDS_PER_DAY = 86400UL;
+
+static time_t midnight_time(time_t t) noexcept
+{
+    return 86400UL + t - t % SECONDS_PER_DAY;
+}
+
+static time_t get_tz_gm_diff(time_t timer)
+{
+    struct tm* lc = localtime(&timer);
+    const time_t lct = mktime(lc);
+    const time_t dst = (lc->tm_isdst > 0) ? 3600 : 0;
+    return lct - mktime(gmtime(&timer)) + dst;
+}
+
+static time_t __tz_diff(time_t timer) noexcept
+{
+    static time_t tz = get_tz_gm_diff(timer);
+    static time_t next_check_time = midnight_time(timer);
+    if (timer > next_check_time) [[unlikely]]
+    {
+        tz = get_tz_gm_diff(timer);
+        next_check_time = midnight_time(timer);
+    };
+    return tz;
+}
 
 struct featurless::log::impl
 {
     char* _streambuffer{ nullptr };
     std::ofstream _ofstream;
-    std::size_t _current_file_size{ 0 };
+    std::atomic<std::size_t> _current_file_size{ 0 };
     std::size_t _max_file_size{ 0 };
     short _max_files{ 0 };
 
@@ -24,6 +53,116 @@ struct featurless::log::impl
     std::string _file_ext;
     std::mutex _mutex;
 };
+
+struct small_tm
+{
+    int tm_sec;   // Seconds. [0-60] (1 leap second)
+    int tm_min;   // Minutes. [0-59]
+    int tm_hour;  // Hours.	  [0-23]
+    int tm_mday;  // Day.     [1-31]
+    int tm_mon;   // Month.   [0-11]
+    int tm_year;  // Year     1900.
+};
+
+static small_tm parse_time(time_t timer) noexcept
+{
+    small_tm date;
+    constexpr long DAYS_PER_CENTURY = 36525L;
+    constexpr long DAYS_PER_4_YEARS = 1461L;
+    // Break down timer into whole and fractional parts of 1 day
+    uint16_t days = timer / SECONDS_PER_DAY;
+    long fract = timer % SECONDS_PER_DAY;
+
+    // Extract hour, minute, and second from the fractional day
+    date.tm_sec = fract % 60L;
+    fract /= 60L;
+    date.tm_min = fract % 60L;
+    date.tm_hour = fract / 60L;
+    /* Our epoch year has the property of being at the conjunction of
+     * all three 'leap cycles', 4, 100, and 400 years ( though we can
+     * ignore the 400 year cycle in this library). Using this property,
+     * we can easily 'map' the time stamp into the leap cycles, quickly
+     * deriving the year and day of year, along with the fact of whether
+     * it is a leap year.
+    */
+    // Map into a 100 year cycle
+    uint16_t years = 100 * ((long)days / DAYS_PER_CENTURY);
+    long remaining_days = (long)days % DAYS_PER_CENTURY;
+
+    // Map into a 4 year cycle
+    years += 4 * (remaining_days / DAYS_PER_4_YEARS);
+    days = remaining_days % DAYS_PER_4_YEARS;
+    if (years > 100)
+        days++;
+
+    /*
+     * 'years' is now at the first year of a 4 year leap cycle, which
+     * will always be a leap year, unless it is 100. 'days' is now an
+     * index into that cycle.
+    */
+    uint16_t leapyear = 1;
+    if (years == 100)
+        leapyear = 0;
+
+    // Compute length, in days, of first year of this cycle
+    uint16_t n = 364 + leapyear;
+
+    /*
+     * If the number of days remaining is greater than the length of the
+     * first year, we make one more division.
+     */
+    if (days > n)
+    {
+        days -= leapyear;
+        leapyear = 0;
+        years += days / 365;
+        days %= 365;
+    }
+    date.tm_year = years - 30;
+    /*
+     * Given the year, day of year, and leap year indicator, we can
+     * break down the month and day of month. If the day of year is less
+     * than 59 (or 60 if a leap year), then we handle the Jan/Feb month
+     * pair as an exception.
+     */
+    n = 59 + leapyear;
+    if (days < n)
+    {
+        /* special case: Jan/Feb month pair */
+        date.tm_mon = days / 31;
+        date.tm_mday = days % 31;
+    }
+    else
+    {
+        /*
+       * The remaining 10 months form a regular pattern of 31 day months
+       * alternating with 30 day months, with a 'phase change' between
+       * July and August (153 days after March 1). We proceed by mapping
+       * our position into either March-July or August-December.
+       */
+        days -= n;
+        auto temp = date.tm_mon = 2 + (days / 153) * 5;
+
+        // Map into a 61 day pair of months
+        days %= 153;
+        date.tm_mon += (days / 61) * 2;
+
+        // Map into a month/day
+        days %= 61;
+        date.tm_mon += days / 31;
+        date.tm_mday = days % 31;
+    }
+    ++date.tm_mday;
+    return (date);
+}
+
+static small_tm featurless_localtime_s() noexcept
+{
+    time_t time_now;  // NOLINT
+    time(&time_now);
+    const time_t time_diff_local = __tz_diff(time_now);
+    return parse_time(time_now + time_diff_local);
+}
 
 inline std::size_t estimate_record_size(std::size_t dynamic_size) noexcept
 {
@@ -57,27 +196,12 @@ inline unsigned long int fucking_std_thread_id() noexcept
 #endif
 }
 
-inline tm __featurless_localtime_s() noexcept
-{
-    time_t time_now;  // NOLINT
-    time(&time_now);
-    return *std::localtime(&time_now);
-}
-
-inline tm __featurless_gmtime_s() noexcept
-{
-    time_t time_now;  // NOLINT
-    time(&time_now);
-    return *std::gmtime(&time_now);
-}
-
 static void copy_int(char* dest, int integer) noexcept
 {
     dest[0] = static_cast<char>('0' + integer / 10);
     dest[1] = static_cast<char>('0' + integer % 10);
 }
 
-template<bool use_utc>
 void featurless::log::write_record(const std::string_view lvl_str,
                                    const std::string_view line,
                                    const std::string_view function,
@@ -89,11 +213,7 @@ void featurless::log::write_record(const std::string_view lvl_str,
     if ((_data->_current_file_size + length_buffer) > _data->_max_file_size && _data->_max_files > 0) [[unlikely]]
         rotate();
 
-    tm time_info;  // NOLINT
-    if constexpr (use_utc)
-        time_info = __featurless_gmtime_s();
-    else
-        time_info = __featurless_localtime_s();
+    small_tm time_info = featurless_localtime_s();
 
 #if defined(_WIN32)
     char* msg_buffer = reinterpret_cast<char*>(_alloca(length_buffer));
@@ -104,7 +224,7 @@ void featurless::log::write_record(const std::string_view lvl_str,
 #endif
     std::memcpy(msg_buffer, "[2000-00-00 00:00:00][000000000000][     ][", 44);
 
-    copy_int(msg_buffer + 3, time_info.tm_year - 100);
+    copy_int(msg_buffer + 3, time_info.tm_year);
     copy_int(msg_buffer + 6, time_info.tm_mon + 1);
     copy_int(msg_buffer + 9, time_info.tm_mday);
     copy_int(msg_buffer + 12, time_info.tm_hour);
@@ -124,10 +244,9 @@ void featurless::log::write_record(const std::string_view lvl_str,
     std::memcpy(ptr_data, line.data(), line.size());
     ptr_data += line.size();
     *(ptr_data++) = ')';
-    *(ptr_data++) = '_';
+    *(ptr_data++) = ' ';
     std::memcpy(ptr_data, message.data(), message.size());
     ptr_data[message.size()] = '\n';
-    ptr_data[message.size() + 1] = '_';
 
     std::scoped_lock s{ _data->_mutex };
     _data->_current_file_size += length_buffer;
@@ -137,18 +256,6 @@ void featurless::log::write_record(const std::string_view lvl_str,
     free(msg_buffer);
 #endif
 }
-
-template void featurless::log::write_record<false>(const std::string_view lvl_str,
-                                                   const std::string_view line,
-                                                   const std::string_view function,
-                                                   const std::string_view src_file,
-                                                   const std::string_view message);
-template void featurless::log::write_record<true>(const std::string_view lvl_str,
-                                                  const std::string_view line,
-                                                  const std::string_view function,
-                                                  const std::string_view src_file,
-                                                  const std::string_view message);
-
 
 void featurless::log::rotate()
 {
@@ -194,7 +301,7 @@ void featurless::log::init(const char* logfile_path,
 {
     _instance._data = new impl();
     if (max_files < 0)
-        abort(/* logger::init max number if files less than 0*/);
+        throw "logger::init max number of files is less than 0";
 
     _instance._data->_max_file_size = max_size_kB * 1000;
     _instance._data->_max_files = max_files;
