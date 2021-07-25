@@ -1,5 +1,10 @@
 #include "featurless/log.h"
+
+#if defined(_MSC_VER)
+#include <malloc.h>
+#elif defined(__GNUC__)
 #include <alloca.h>
+#endif
 #include <atomic>
 #include <cstring>
 #include <ctime>
@@ -128,8 +133,8 @@ void featurless::log::write_record(const std::string_view lvl_str,
 
     tm time_info = featurless_localtime_s();
 
-#if defined(_WIN32)
-    char* msg_buffer = reinterpret_cast<char*>(_alloca(length_buffer));
+#if defined(_MSC_VER)
+    char* msg_buffer = reinterpret_cast<char*>(_malloca(length_buffer));
 #elif defined(__GNUC__)
     char* msg_buffer = reinterpret_cast<char*>(alloca(length_buffer));
 #else
