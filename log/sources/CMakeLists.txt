@@ -1,6 +1,5 @@
 set_target_cppcheck(${CMAKE_CURRENT_LIST_DIR})
 add_library(${PROJECT_NAME} STATIC )
-target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt)
 
 set(HEADER_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include/featurless)
 target_sources(${PROJECT_NAME} PRIVATE log.cpp ${HEADER_INCLUDE_DIR}/log.h)

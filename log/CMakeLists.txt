@@ -30,9 +30,9 @@ include("cmake/analyzers.cmake")
 include("cmake/cache.cmake")
 
 # Project sources...............................................................
-add_subdirectory("lib/fmt")
 add_subdirectory("sources")
-if (MAIN_PROJECT)
-    message("-- featurless::log is the main project. compiling 'tests'")
+if (MAIN_PROJECT AND BUILD_TESTS)
+    message("-- featurless::log is the main project. compiling 'tests'. Require fmt::format.")
+    add_subdirectory("lib/fmt")
     add_subdirectory("test")
 endif()

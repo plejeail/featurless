@@ -29,8 +29,8 @@
 #ifndef FEATURLESS_LOG_HEADER_GUARD
 #define FEATURLESS_LOG_HEADER_GUARD
 
-#include <fmt/format.h>
 #include <string_view>
+
 #define FEATURLESS_LOG_LEVEL_TRACE 0
 #define FEATURLESS_LOG_LEVEL_DEBUG 1
 #define FEATURLESS_LOG_LEVEL_INFO  2
@@ -44,50 +44,50 @@
 #endif
 
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_TRACE
-#define FLOG_TRACE(...)                                                                             \
+#define FLOG_TRACE(message)                                                                         \
     featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::trace>(), \
                                     __FEATURLESS_STRINGIZE(__LINE__), __func__,                     \
-                                    featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
+                                    featurless::__pretty_filename(__FILE__), message)
 #else
 #define FLOG_TRACE(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_DEBUG
-#define FLOG_DEBUG(...)                                                                             \
+#define FLOG_DEBUG(message)                                                                         \
     featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::debug>(), \
                                     __FEATURLESS_STRINGIZE(__LINE__), __func__,                     \
-                                    featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
+                                    featurless::__pretty_filename(__FILE__), message)
 #else
-#define FLOG_DEBUG(...)
+#define FLOG_DEBUG(message)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_INFO
-#define FLOG_INFO(...)                                                                             \
+#define FLOG_INFO(message)                                                                         \
     featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::info>(), \
                                     __FEATURLESS_STRINGIZE(__LINE__), __func__,                    \
-                                    featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
+                                    featurless::__pretty_filename(__FILE__), message)
 #else
 #define FLOG_INFO(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_WARN
-#define FLOG_WARN(...)                                                                                \
+#define FLOG_WARN(message)                                                                            \
     featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::warning>(), \
                                     __FEATURLESS_STRINGIZE(__LINE__), __func__,                       \
-                                    featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
+                                    featurless::__pretty_filename(__FILE__), message)
 #else
 #define FLOG_WARN(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_ERROR
-#define FLOG_ERROR(...)                                                                             \
+#define FLOG_ERROR(message)                                                                         \
     featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::error>(), \
                                     __FEATURLESS_STRINGIZE(__LINE__), __func__,                     \
-                                    featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
+                                    featurless::__pretty_filename(__FILE__), message)
 #else
 #define FLOG_ERROR(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_FATAL
-#define FLOG_FATAL(...)                                                                             \
+#define FLOG_FATAL(message)                                                                         \
     featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::fatal>(), \
                                     __FEATURLESS_STRINGIZE(__LINE__), __func__,                     \
-                                    featurless::__pretty_filename(__FILE__), fmt::format(__VA_ARGS__))
+                                    featurless::__pretty_filename(__FILE__), message)
 #else
 #define FLOG_FATAL(...)
 #endif

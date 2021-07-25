@@ -1,4 +1,6 @@
 if(BUILD_TESTS)
-    add_executable(PROJECTTESTS test_main.cpp)
-    target_link_libraries(PROJECTTESTS PRIVATE ${PROJECT_NAME})
+    add_executable(FeaturlessLogTests test_main.cpp)
+    target_link_libraries(FeaturlessLogTests PRIVATE ${PROJECT_NAME})
+    target_link_libraries(FeaturlessLogTests PUBLIC pthread)
+target_link_libraries(FeaturlessLogTests PUBLIC fmt::fmt)
 endif()
