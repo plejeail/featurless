@@ -128,9 +128,6 @@ void featurless::log::write_record(const std::string_view lvl_str,
 {
     const std::size_t length_buffer =
       estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
-    if ((_data->_current_file_size + length_buffer) > _data->_max_file_size && _data->_max_files > 0) [[unlikely]]
-        rotate();
-
     tm time_info = featurless_localtime_s();
 
 #if defined(_MSC_VER)
@@ -142,7 +139,7 @@ void featurless::log::write_record(const std::string_view lvl_str,
 #endif
     std::memcpy(msg_buffer, "[2000-00-00 00:00:00][000000000000][     ][", 44);
 
-    copy_int(msg_buffer + 3, time_info.tm_year);
+    copy_int(msg_buffer + 3, time_info.tm_year - 100);
     copy_int(msg_buffer + 6, time_info.tm_mon + 1);
     copy_int(msg_buffer + 9, time_info.tm_mday);
     copy_int(msg_buffer + 12, time_info.tm_hour);
@@ -167,6 +164,8 @@ void featurless::log::write_record(const std::string_view lvl_str,
     ptr_data[message.size()] = '\n';
 
     std::scoped_lock s{ _data->_mutex };
+    if ((_data->_current_file_size + length_buffer) > _data->_max_file_size && _data->_max_files > 0) [[unlikely]]
+        rotate();
     _data->_current_file_size += length_buffer;
     _data->_ofstream.write(msg_buffer, static_cast<std::streamsize>(length_buffer));
 
@@ -177,7 +176,6 @@ void featurless::log::write_record(const std::string_view lvl_str,
 
 void featurless::log::rotate()
 {
-    std::scoped_lock s{ _data->_mutex };
     _data->_ofstream.close();
 
     std::string filename_current;
