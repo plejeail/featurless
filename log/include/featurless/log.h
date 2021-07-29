@@ -44,50 +44,38 @@
 #endif
 
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_TRACE
-#define FLOG_TRACE(message)                                                                         \
-    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::trace>(), \
-                                    __FEATURLESS_STRINGIZE(__LINE__), __func__,                     \
-                                    featurless::__pretty_filename(__FILE__), message)
+#define FLOG_TRACE(message) \
+    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::trace>(), __func__, message)
 #else
 #define FLOG_TRACE(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_DEBUG
-#define FLOG_DEBUG(message)                                                                         \
-    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::debug>(), \
-                                    __FEATURLESS_STRINGIZE(__LINE__), __func__,                     \
-                                    featurless::__pretty_filename(__FILE__), message)
+#define FLOG_DEBUG(message) \
+    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::debug>(), __func__, message)
 #else
 #define FLOG_DEBUG(message)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_INFO
-#define FLOG_INFO(message)                                                                         \
-    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::info>(), \
-                                    __FEATURLESS_STRINGIZE(__LINE__), __func__,                    \
-                                    featurless::__pretty_filename(__FILE__), message)
+#define FLOG_INFO(message) \
+    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::info>(), __func__, message)
 #else
 #define FLOG_INFO(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_WARN
-#define FLOG_WARN(message)                                                                            \
-    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::warning>(), \
-                                    __FEATURLESS_STRINGIZE(__LINE__), __func__,                       \
-                                    featurless::__pretty_filename(__FILE__), message)
+#define FLOG_WARN(message) \
+    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::warning>(), __func__, message)
 #else
 #define FLOG_WARN(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_ERROR
-#define FLOG_ERROR(message)                                                                         \
-    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::error>(), \
-                                    __FEATURLESS_STRINGIZE(__LINE__), __func__,                     \
-                                    featurless::__pretty_filename(__FILE__), message)
+#define FLOG_ERROR(message) \
+    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::error>(), __func__, message)
 #else
 #define FLOG_ERROR(...)
 #endif
 #if FEATURLESS_LOG_MIN_LEVEL <= FEATURLESS_LOG_LEVEL_FATAL
-#define FLOG_FATAL(message)                                                                         \
-    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::fatal>(), \
-                                    __FEATURLESS_STRINGIZE(__LINE__), __func__,                     \
-                                    featurless::__pretty_filename(__FILE__), message)
+#define FLOG_FATAL(message) \
+    featurless::log::logger().write(featurless::__level_to_string<featurless::log::level::fatal>(), __func__, message)
 #else
 #define FLOG_FATAL(...)
 #endif
@@ -113,13 +101,9 @@ public:
 
     static log& logger() noexcept { return _instance; }
 
-    inline void write(const std::string_view lvl_str,
-                      const std::string_view line,
-                      const std::string_view function,
-                      const std::string_view src_file,
-                      const std::string_view message)
+    inline void write(const char* const lvl_str, const std::string_view function, const std::string_view message)
     {
-        write_record(lvl_str, line, function, src_file, message);
+        write_record(lvl_str, function, message);
     }
     ~log();
 
@@ -130,11 +114,7 @@ private:
 
     static log _instance;
 
-    void write_record(const std::string_view lvl_str,
-                      const std::string_view line,
-                      const std::string_view function,
-                      const std::string_view src_file,
-                      const std::string_view message);
+    void write_record(const char* const lvl_str, const std::string_view function, const std::string_view message);
 
     void build_file_name(std::string& filename, int file_number);
 
@@ -145,41 +125,24 @@ private:
 };
 
 #if FEATURLESS_LOG_MIN_LEVEL < FEATURLESS_LOG_LEVEL_NONE
-#define __FEATURLESS_STRINGIZE(x)    __FEATURLESS_STRINGIZE_DT(x)
-#define __FEATURLESS_STRINGIZE_DT(x) #x
-
-consteval std::string_view __pretty_filename(const std::string_view filename) noexcept
-{  // to be used only on __FILE__ macro
-    std::string_view::const_reverse_iterator it;
-    for (it = filename.rbegin(); it < filename.rend(); ++it)
-#ifdef _WIN32
-        if (*it == '\\')
-            break;
-#else
-        if (*it == '/')
-            break;
-#endif
-    return std::string_view(it.base(), filename.end());
-}
-
 template<featurless::log::level lvl>
-consteval std::string_view __level_to_string() noexcept
+consteval const char* const __level_to_string() noexcept
 {
     using level = featurless::log::level;
     if constexpr (lvl == level::trace)
-        return std::string_view("trace");
+        return "trace";
     else if constexpr (lvl == level::debug)
-        return std::string_view("debug");
+        return "debug";
     else if constexpr (lvl == level::info)
-        return std::string_view("info ");
+        return "info ";
     else if constexpr (lvl == level::warning)
-        return std::string_view("warn ");
+        return "warn ";
     else if constexpr (lvl == level::error)
-        return std::string_view("error");
+        return "error";
     else if constexpr (lvl == level::fatal)
-        return std::string_view("fatal");
+        return "fatal";
     else
-        return std::string_view(" ??? ");
+        return " ??? ";
 }
 // #include "format.h"
 #endif

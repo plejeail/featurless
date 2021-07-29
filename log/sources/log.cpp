@@ -228,7 +228,7 @@ static small_tm featurless_localtime_s() noexcept
 
 inline std::size_t estimate_record_size(std::size_t dynamic_size) noexcept
 {
-    return 50 + dynamic_size;
+    return 45 + dynamic_size;
 }
 
 template<typename int_t>
@@ -271,14 +271,9 @@ static void copy_int(char* dest, int integer) noexcept
     dest[1] = static_cast<char>('0' + integer % 10);
 }
 
-void featurless::log::write_record(const std::string_view lvl_str,
-                                   const std::string_view line,
-                                   const std::string_view function,
-                                   const std::string_view src_file,
-                                   const std::string_view message)
+void featurless::log::write_record(const char* lvl_str, const std::string_view function, const std::string_view message)
 {
-    const std::size_t length_buffer =
-      estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
+    const std::size_t length_buffer = estimate_record_size(function.size() + message.size());
 
     small_tm time_info = featurless_localtime_s();
 
@@ -289,29 +284,26 @@ void featurless::log::write_record(const std::string_view lvl_str,
 #else
     char* msg_buffer = reinterpret_cast<char*>(malloc(length_buffer));
 #endif
-    std::memcpy(msg_buffer, "[2000-00-00 00:00:00][000000000000][     ][", 44);
-
-    copy_int(msg_buffer + 3, time_info.tm_year - 100);
-    copy_int(msg_buffer + 6, time_info.tm_mon + 1);
-    copy_int(msg_buffer + 9, time_info.tm_mday);
-    copy_int(msg_buffer + 12, time_info.tm_hour);
-    copy_int(msg_buffer + 15, time_info.tm_min);
-    copy_int(msg_buffer + 18, time_info.tm_sec);
-    copy_hex(msg_buffer + 33, fucking_std_thread_id());
-    std::memcpy(msg_buffer + 36, lvl_str.data(), lvl_str.size());
-    char* ptr_data = msg_buffer + 43;
+    std::memcpy(msg_buffer, "2000-00-00 00:00:00 [     ][000000000000](", 42);
+    constexpr std::size_t offset_write{ 0 };
+    // copy date
+    copy_int(msg_buffer + 2, time_info.tm_year);
+    copy_int(msg_buffer + 5, time_info.tm_mon + 1);
+    copy_int(msg_buffer + 8, time_info.tm_mday);
+    // copy hour
+    copy_int(msg_buffer + 11, time_info.tm_hour);
+    copy_int(msg_buffer + 14, time_info.tm_min);
+    copy_int(msg_buffer + 17, time_info.tm_sec);
+    // level
+    std::memcpy(msg_buffer + 21, lvl_str, 5);
+    // thread id
+    copy_hex(msg_buffer + 39, fucking_std_thread_id());
+    // function
+    char* ptr_data = msg_buffer + 42;
     std::memcpy(ptr_data, function.data(), function.size());
     ptr_data += function.size();
-    *(ptr_data++) = ']';
-    *(ptr_data++) = '@';
-    *(ptr_data++) = '(';
-    std::memcpy(ptr_data, src_file.data(), src_file.size());
-    ptr_data += src_file.size();
-    *(ptr_data++) = ',';
-    std::memcpy(ptr_data, line.data(), line.size());
-    ptr_data += line.size();
-    *(ptr_data++) = ')';
-    *(ptr_data++) = ' ';
+    *ptr_data++ = ')';
+    *ptr_data++ = ' ';
     std::memcpy(ptr_data, message.data(), message.size());
     ptr_data[message.size()] = '\n';
 
