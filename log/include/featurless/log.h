@@ -96,8 +96,7 @@ public:
         _nb_levels
     };
 
-    static void
-    init(const char* logfile_path, std::size_t max_size_kB, short max_files, std::size_t buffer_size_kB = 256);
+    static void init(const char* logfile_path, std::size_t max_size_kB, short max_files);
 
     static log& logger() noexcept { return _instance; }
 

@@ -16,6 +16,7 @@
 
 
 featurless::log featurless::log::_instance;
+
 constexpr long SECONDS_PER_DAY = 86400UL;
 
 class FileStream
@@ -28,7 +29,11 @@ public:
     explicit FileStream() = default;
     FileStream(const FileStream&) = delete;
     FileStream& operator=(const FileStream&) = delete;
-    ~FileStream() noexcept { close(); }
+    ~FileStream() noexcept
+    {
+        flush();
+        close();
+    }
 
     void open(const std::string_view fname)
     {
@@ -36,7 +41,7 @@ public:
         {
 #if defined(_WIN32) && !defined(__MINGW32__)
             // Fix MSVC warning about "unsafe" fopen.
-            int errno = fopen_s(&_fd, fname.data(), "ab");
+            fopen_s(&_fd, fname.data(), "ab");
 #else
             _fd = std::fopen(fname.data(), "ab");
 #endif
@@ -263,12 +268,13 @@ inline auto fucking_std_thread_id() noexcept
 #endif
 }
 
-static void copy_int(char* dest, int integer) noexcept
+static void copy_time(char* dest, int integer) noexcept
 {
     // copy integers in interval [0, 99]
     // assume to have 2 chars in string reserved
-    dest[0] = static_cast<char>('0' + integer / 10);
-    dest[1] = static_cast<char>('0' + integer % 10);
+    int quot = (103 * integer) >> 10;  // divide by 10
+    dest[0] = static_cast<char>('0' + quot);
+    dest[1] = static_cast<char>('0' + integer - quot * 10);
 }
 
 void featurless::log::write_record(const char* lvl_str, const std::string_view function, const std::string_view message)
@@ -276,7 +282,6 @@ void featurless::log::write_record(const char* lvl_str, const std::string_view f
     const std::size_t length_buffer = estimate_record_size(function.size() + message.size());
 
     small_tm time_info = featurless_localtime_s();
-
 #if defined(_MSC_VER)
     char* msg_buffer = reinterpret_cast<char*>(_malloca(length_buffer));
 #elif defined(__GNUC__)
@@ -287,13 +292,13 @@ void featurless::log::write_record(const char* lvl_str, const std::string_view f
     std::memcpy(msg_buffer, "2000-00-00 00:00:00 [     ][000000000000](", 42);
     constexpr std::size_t offset_write{ 0 };
     // copy date
-    copy_int(msg_buffer + 2, time_info.tm_year);
-    copy_int(msg_buffer + 5, time_info.tm_mon + 1);
-    copy_int(msg_buffer + 8, time_info.tm_mday);
+    copy_time(msg_buffer + 2, time_info.tm_year);
+    copy_time(msg_buffer + 5, time_info.tm_mon + 1);
+    copy_time(msg_buffer + 8, time_info.tm_mday);
     // copy hour
-    copy_int(msg_buffer + 11, time_info.tm_hour);
-    copy_int(msg_buffer + 14, time_info.tm_min);
-    copy_int(msg_buffer + 17, time_info.tm_sec);
+    copy_time(msg_buffer + 11, time_info.tm_hour);
+    copy_time(msg_buffer + 14, time_info.tm_min);
+    copy_time(msg_buffer + 17, time_info.tm_sec);
     // level
     std::memcpy(msg_buffer + 21, lvl_str, 5);
     // thread id
@@ -303,16 +308,18 @@ void featurless::log::write_record(const char* lvl_str, const std::string_view f
     std::memcpy(ptr_data, function.data(), function.size());
     ptr_data += function.size();
     *ptr_data++ = ')';
+    // record message
     *ptr_data++ = ' ';
     std::memcpy(ptr_data, message.data(), message.size());
     ptr_data[message.size()] = '\n';
 
-    std::scoped_lock s{ _data->_mutex };
+    // write log
+    _data->_mutex.lock();
     if ((_data->_current_file_size + length_buffer) > _data->_max_file_size && _data->_max_files > 0) [[unlikely]]
         rotate();
     _data->_current_file_size += length_buffer;
     _data->_ofstream.write(msg_buffer, length_buffer);
-
+    _data->_mutex.unlock();
 #if !defined(_WIN32) && !defined(__GNUC__)
     free(msg_buffer);
 #endif
@@ -321,7 +328,6 @@ void featurless::log::write_record(const char* lvl_str, const std::string_view f
 void featurless::log::rotate()
 {
     _data->_ofstream.close();
-
     std::string filename_current;
     std::string filename_new;
     for (int file_number = _data->_max_files - 2; file_number >= 0; --file_number)
@@ -331,8 +337,8 @@ void featurless::log::rotate()
         build_file_name(filename_new, file_number + 1);
         std::filesystem::rename(filename_current, filename_new, nothrow_if_fail);
     }
-    _data->_current_file_size = 0;
 
+    _data->_current_file_size = 0;
     _data->_ofstream.open(filename_current);
 }
 
@@ -354,10 +360,7 @@ void featurless::log::build_file_name(std::string& filename, int file_number)
 }
 
 
-void featurless::log::init(const char* logfile_path,
-                           std::size_t max_size_kB,
-                           short max_files,
-                           std::size_t buffer_size_kB)
+void featurless::log::init(const char* logfile_path, std::size_t max_size_kB, short max_files)
 {
     _instance._data = new impl();
     if (max_files < 0)
@@ -385,6 +388,5 @@ void featurless::log::init(const char* logfile_path,
 
 featurless::log::~log()
 {
-    _instance._data->_ofstream.flush();
     delete _data;
 }
