@@ -9,16 +9,66 @@
 #include <cstring>
 #include <ctime>
 #include <filesystem>
-#include <fstream>
 #include <mutex>
 #include <string>
 #include <string_view>
 #include <thread>
 
-#include <iostream>
-featurless::log featurless::log::_instance;
 
+featurless::log featurless::log::_instance;
 constexpr long SECONDS_PER_DAY = 86400UL;
+
+class FileStream
+{
+    static constexpr int _open_tries = 5;
+    static constexpr std::chrono::milliseconds _open_interval{ 10 };
+    std::FILE* _fd{ nullptr };
+
+public:
+    explicit FileStream() = default;
+    FileStream(const FileStream&) = delete;
+    FileStream& operator=(const FileStream&) = delete;
+    ~FileStream() noexcept { close(); }
+
+    void open(const std::string_view fname)
+    {
+        for (int tries = 0; tries < _open_tries; ++tries)
+        {
+#if defined(_WIN32) && !defined(__MINGW32__)
+            // Fix MSVC warning about "unsafe" fopen.
+            int errno = fopen_s(&_fd, fname.data(), "ab");
+#else
+            _fd = std::fopen(fname.data(), "ab");
+#endif
+            if (_fd != nullptr) [[likely]]
+            {
+                return;
+            }
+            std::this_thread::sleep_for(_open_interval);
+        }
+        throw("featurless::log failed to open log file.");
+    }
+
+    void flush() { std::fflush(_fd); }
+
+    void close() noexcept
+    {
+        if (_fd != nullptr) [[likely]]
+        {
+            std::fclose(_fd);
+            _fd = nullptr;
+        }
+    }
+
+    void write(const char* buf, std::size_t bufsize)
+    {
+        std::size_t written = std::fwrite(buf, 1, bufsize, _fd);
+        if (written != bufsize) [[unlikely]]
+        {
+            throw("featurless::log failed writing record to log file.");
+        }
+    }
+};
 
 static time_t midnight_time(time_t t) noexcept
 {
@@ -51,19 +101,121 @@ static time_t __tz_diff(time_t timer) noexcept
 
 struct featurless::log::impl
 {
-    char* _streambuffer{ nullptr };
-    std::ofstream _ofstream;
+    FileStream _ofstream;
     std::atomic<std::size_t> _current_file_size{ 0 };
     std::size_t _max_file_size{ 0 };
+    std::mutex _mutex;
     short _max_files{ 0 };
 
     std::string _file_path;
     std::string _file_name;
     std::string _file_ext;
-    std::mutex _mutex;
 };
 
-static tm featurless_localtime_s() noexcept
+struct small_tm
+{
+    int tm_sec;   // Seconds. [0-60] (1 leap second)
+    int tm_min;   // Minutes. [0-59]
+    int tm_hour;  // Hours.	  [0-23]
+    int tm_mday;  // Day.     [1-31]
+    int tm_mon;   // Month.   [0-11]
+    int tm_year;  // Year     1900.
+};
+
+static small_tm parse_time(time_t timer) noexcept
+{
+    // from arduino glibc, tricky.
+    small_tm date;
+    constexpr long DAYS_PER_CENTURY = 36525L;
+    constexpr long DAYS_PER_4_YEARS = 1461L;
+    // Break down timer into whole and fractional parts of 1 day
+    uint16_t days = timer / SECONDS_PER_DAY;
+    long fract = timer % SECONDS_PER_DAY;
+
+    // Extract hour, minute, and second from the fractional day
+    date.tm_sec = fract % 60L;
+    fract /= 60L;
+    date.tm_min = fract % 60L;
+    date.tm_hour = fract / 60L;
+    /* Our epoch year has the property of being at the conjunction of
+     * all three 'leap cycles', 4, 100, and 400 years ( though we can
+     * ignore the 400 year cycle in this library). Using this property,
+     * we can easily 'map' the time stamp into the leap cycles, quickly
+     * deriving the year and day of year, along with the fact of whether
+     * it is a leap year.
+    */
+    // Map into a 100 year cycle
+    uint16_t years = 100 * ((long)days / DAYS_PER_CENTURY);
+    long remaining_days = (long)days % DAYS_PER_CENTURY;
+
+    // Map into a 4 year cycle
+    years += 4 * (remaining_days / DAYS_PER_4_YEARS);
+    days = remaining_days % DAYS_PER_4_YEARS;
+    if (years > 100)
+        days++;
+
+    /*
+     * 'years' is now at the first year of a 4 year leap cycle, which
+     * will always be a leap year, unless it is 100. 'days' is now an
+     * index into that cycle.
+    */
+    uint16_t leapyear = 1;
+    if (years == 100)
+        leapyear = 0;
+
+    // Compute length, in days, of first year of this cycle
+    uint16_t n = 364 + leapyear;
+
+    /*
+     * If the number of days remaining is greater than the length of the
+     * first year, we make one more division.
+     */
+    if (days > n)
+    {
+        days -= leapyear;
+        leapyear = 0;
+        years += days / 365;
+        days %= 365;
+    }
+    date.tm_year = years - 30;
+    /*
+     * Given the year, day of year, and leap year indicator, we can
+     * break down the month and day of month. If the day of year is less
+     * than 59 (or 60 if a leap year), then we handle the Jan/Feb month
+     * pair as an exception.
+     */
+    n = 59 + leapyear;
+    if (days < n)
+    {
+        /* special case: Jan/Feb month pair */
+        date.tm_mon = days / 31;
+        date.tm_mday = days % 31;
+    }
+    else
+    {
+        /*
+       * The remaining 10 months form a regular pattern of 31 day months
+       * alternating with 30 day months, with a 'phase change' between
+       * July and August (153 days after March 1). We proceed by mapping
+       * our position into either March-July or August-December.
+       */
+        days -= n;
+        auto temp = date.tm_mon = 2 + (days / 153) * 5;
+
+        // Map into a 61 day pair of months
+        days %= 153;
+        date.tm_mon += (days / 61) * 2;
+
+        // Map into a month/day
+        days %= 61;
+        date.tm_mon += days / 31;
+        date.tm_mday = days % 31;
+    }
+    ++date.tm_mday;
+    return (date);
+}
+
+static small_tm featurless_localtime_s() noexcept
 {
     // custom date parsing
     // do not redo time zone stuff at each time, instead only check one time per
@@ -71,8 +223,7 @@ static tm featurless_localtime_s() noexcept
     // also seems to avoid some system calls / code cache miss
     time_t time_now;  // NOLINT
     time(&time_now);
-    time_now += __tz_diff(time_now);
-    return *std::gmtime(&time_now);
+    return parse_time(time_now + __tz_diff(time_now));
 }
 
 inline std::size_t estimate_record_size(std::size_t dynamic_size) noexcept
@@ -128,7 +279,8 @@ void featurless::log::write_record(const std::string_view lvl_str,
 {
     const std::size_t length_buffer =
       estimate_record_size(line.size() + function.size() + src_file.size() + message.size());
-    tm time_info = featurless_localtime_s();
+
+    small_tm time_info = featurless_localtime_s();
 
 #if defined(_MSC_VER)
     char* msg_buffer = reinterpret_cast<char*>(_malloca(length_buffer));
@@ -167,7 +319,7 @@ void featurless::log::write_record(const std::string_view lvl_str,
     if ((_data->_current_file_size + length_buffer) > _data->_max_file_size && _data->_max_files > 0) [[unlikely]]
         rotate();
     _data->_current_file_size += length_buffer;
-    _data->_ofstream.write(msg_buffer, static_cast<std::streamsize>(length_buffer));
+    _data->_ofstream.write(msg_buffer, length_buffer);
 
 #if !defined(_WIN32) && !defined(__GNUC__)
     free(msg_buffer);
@@ -189,7 +341,7 @@ void featurless::log::rotate()
     }
     _data->_current_file_size = 0;
 
-    _data->_ofstream.open(filename_current, std::ios::binary);
+    _data->_ofstream.open(filename_current);
 }
 
 void featurless::log::build_file_name(std::string& filename, int file_number)
@@ -236,21 +388,11 @@ void featurless::log::init(const char* logfile_path,
     if (!p.empty())
         std::filesystem::create_directories(p);
 
-    if (buffer_size_kB > 0)
-    {
-        buffer_size_kB *= 1000;
-        _instance._data->_streambuffer = new char[buffer_size_kB];
-        _instance._data->_ofstream.rdbuf()->pubsetbuf(_instance._data->_streambuffer,
-                                                      static_cast<std::streamsize>(buffer_size_kB));
-    }
-
-    _instance._data->_ofstream.open(logfile_path, std::ios_base::app | std::ios::binary);
+    _instance._data->_ofstream.open(logfile_path);
 }
 
 featurless::log::~log()
 {
     _instance._data->_ofstream.flush();
-    if (_data != nullptr)
-        delete[] _data->_streambuffer;
     delete _data;
 }
