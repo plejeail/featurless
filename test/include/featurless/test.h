@@ -52,10 +52,8 @@
 #ifndef FEATURLESS_TESTS_HEADER_GUARD
 #define FEATURLESS_TESTS_HEADER_GUARD
 
-namespace featurless
-{
-class test
-{
+namespace featurless {
+class test {
     struct Data;
     typedef bool testfun_t();
     static constexpr int line_width{ 73 };
