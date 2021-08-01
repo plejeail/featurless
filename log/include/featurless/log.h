@@ -80,43 +80,27 @@
 #define FLOG_FATAL(...)
 #endif
 
-namespace featurless
-{
-class log
-{
+namespace featurless {
+class log {
 public:
-    enum class level : char
-    {
-        trace = 0,
-        debug = 1,
-        info = 2,
-        warning = 3,
-        error = 4,
-        fatal = 5,
-        _nb_levels
-    };
+    enum class level : char { trace = 0, debug = 1, info = 2, warning = 3, error = 4, fatal = 5, _nb_levels };
 
     static void init(const char* logfile_path, std::size_t max_size_kB, short max_files);
-
     static log& logger() noexcept { return _instance; }
+    void write(const char* const __restrict lvl_str, const std::string_view function, const std::string_view message);
 
-    inline void write(const char* const lvl_str, const std::string_view function, const std::string_view message)
-    {
-        write_record(lvl_str, function, message);
-    }
     ~log();
 
 private:
     log() = default;
-    log(log&) = delete;
+    log(const log&) = delete;
     log(log&&) = delete;
+    log& operator=(const log&) = delete;
+    log& operator=(log&&) = delete;
 
     static log _instance;
 
-    void write_record(const char* const lvl_str, const std::string_view function, const std::string_view message);
-
     void build_file_name(std::string& filename, int file_number);
-
     void rotate();
 
     struct impl;
@@ -124,9 +108,13 @@ private:
 };
 
 #if FEATURLESS_LOG_MIN_LEVEL < FEATURLESS_LOG_LEVEL_NONE
+#if defined(__GNUC__)
+#define FEATURLES_CONSTEVAL consteval
+#else
+#define FEATURLES_CONSTEVAL constexpr
+#endif
 template<featurless::log::level lvl>
-consteval const char* const __level_to_string() noexcept
-{
+FEATURLES_CONSTEVAL const char* const __level_to_string() noexcept {
     using level = featurless::log::level;
     if constexpr (lvl == level::trace)
         return "trace";
@@ -143,6 +131,7 @@ consteval const char* const __level_to_string() noexcept
     else
         return " ??? ";
 }
+#undef FEATURLES_CONSTEVAL
 // #include "format.h"
 #endif
 }  // namespace featurless
